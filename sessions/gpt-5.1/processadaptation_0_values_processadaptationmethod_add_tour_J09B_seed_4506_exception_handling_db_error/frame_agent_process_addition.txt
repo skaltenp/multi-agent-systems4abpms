@@ -1,0 +1,51 @@
+================================ Human Message =================================
+
+**Add** this process rule with id 'J09B' to the rule database:
+
+1. Make a copy of decision_table with TOURS starting with J09B named J09B_temp
+2. Update the table with an additional empty column ENTSCHEIDUNG
+3. Apply the following rules to the joined table:
+    1. Count the number of EQUNR for every HAUS and set ENTSCHEIDUNG to "KSA" if there are less than 3 EQUNR. ELSE set ENTSCHEIDUNG to "EVU"
+    2. SET all houses with HOUSE_NUM1 of 0 to "EVU"
+4. JOIN this table with the EABLG table using INSTALLATION.
+5. JOIN this table with the NET_MASTER table and the SALES_MASTER table using EQUNR.
+6. Compare sales data and net data for these IDs:
+    If sales data is there, take sales data and empty net data.
+    Otherwise stay with net data and empty sales data.
+7. Export the final data from the table as CSV file named J09B including the columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`
+8. Send them to the EVU team to meter.readings@evu.com
+9. Delete the temporary table after exporting the data.
+
+================================== Ai Message ==================================
+Tool Calls:
+  generate_process_rule (call_BdKa9KPWGK106cGTH7ZSLsWr)
+ Call ID: call_BdKa9KPWGK106cGTH7ZSLsWr
+  Args:
+    user_request: 1. Make a copy of decision_table with TOURS starting with J09B named J09B_temp
+2. Update the table with an additional empty column ENTSCHEIDUNG
+3. Apply the following rules to the joined table:
+    1. Count the number of EQUNR for every HAUS and set ENTSCHEIDUNG to "KSA" if there are less than 3 EQUNR. ELSE set ENTSCHEIDUNG to "EVU"
+    2. SET all houses with HOUSE_NUM1 of 0 to "EVU"
+4. JOIN this table with the EABLG table using INSTALLATION.
+5. JOIN this table with the NET_MASTER table and the SALES_MASTER table using EQUNR.
+6. Compare sales data and net data for these IDs:
+    If sales data is there, take sales data and empty net data.
+    Otherwise stay with net data and empty sales data.
+7. Export the final data from the table as CSV file named J09B including the columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`
+8. Send them to the EVU team to meter.readings@evu.com
+9. Delete the temporary table after exporting the data.
+    process_rule_id: J09B
+================================= Tool Message =================================
+Name: generate_process_rule
+
+[{'type': 'text', 'text': '{"success":true,"process_rule_id":"J09B","process_rule":"1. Create temporary working table `J09B_temp`\\n   1.1. From source table `decision_table`, select all columns for all rows where `TOURS` starts with `J09B` (e.g. `WHERE TOURS LIKE \'J09B%\'`).\\n   1.2. Store the result as a new physical table named `J09B_temp`.\\n\\n2. Add an empty column `ENTSCHEIDUNG` to `J09B_temp`\\n   2.1. ALTER `J09B_temp` to add column `ENTSCHEIDUNG` (string/text type, nullable).\\n   2.2. Initialize `ENTSCHEIDUNG` to `NULL` for all existing rows, if not automatically defaulted.\\n\\n3. Set `ENTSCHEIDUNG` based on number of EQUNR per HAUS\\n   3.1. For each distinct `HAUS` value in `J09B_temp`, compute `eq_count = COUNT(DISTINCT EQUNR)` over all rows with that `HAUS`.\\n   3.2. For all rows in `J09B_temp` with the same `HAUS` value:\\n       \\n       IF `eq_count < 3` THEN\\n           3.2.1. Set `ENTSCHEIDUNG = \'KSA\'` for all rows with this `HAUS`.\\n       ELSE\\n           3.2.2. Set `ENTSCHEIDUNG = \'EVU\'` for all rows with this `HAUS`.\\n       ENDIF\\n\\n4. Override `ENTSCHEIDUNG` to `EVU` when `HOUSE_NUM1 = 0`\\n   4.1. For each row in `J09B_temp`:\\n       \\n       IF `HOUSE_NUM1 = 0` THEN\\n           4.1.1. Set `ENTSCHEIDUNG = \'EVU\'` for this row (even if previously set to `KSA`).\\n       ELSE\\n           4.1.2. Leave `ENTSCHEIDUNG` unchanged for this row.\\n       ENDIF\\n\\n5. Prepare joined dataset with EABLG, NET_MASTER, SALES_MASTER (query-level; do not persist unless needed)\\n   5.1. Use `J09B_temp` as base table alias `D`.\\n   5.2. LEFT JOIN `EABLG` as `E` on installation:\\n        - Use the correct installation key; for example: `D.INSTALLATION = E.INSTALLATION` or `D.ANLAGE = E.ANLAGE` (use whichever column actually represents INSTALLATION/ANLAGE in each table).\\n   5.3. LEFT JOIN `NET_MASTER` as `N` on equipment:\\n        - `D.EQUNR = N.EQUNR`.\\n   5.4. LEFT JOIN `SALES_MASTER` as `S` on equipment:\\n        - `D.EQUNR = S.EQUNR`.\\n   5.5. If column names collide between `N` and `S` (e.g. both have `TITLE`, `STREET`, etc.), retain them separately using aliases at this stage (e.g. `N.TITLE AS NET_TITLE`, `S.TITLE AS SALES_TITLE`).\\n\\n6. Decide per row whether to use SALES or NET master data\\n   6.1. For each joined row (`D` + `E` + `N` + `S`), define which master data source to use for the person/address fields.\\n       \\n       IF a matching `SALES_MASTER` row exists, i.e. a key column such as `S.ME_MA_ID` is NOT NULL for this row THEN\\n           6.1.1. Define unified output columns using SALES data:\\n                  - `ME_MA_ID`   = `S.ME_MA_ID`\\n                  - `TITLE`      = `S.TITLE`\\n                  - `FORENAME`   = `S.FORENAME`\\n                  - `SURNAME`    = `S.SURNAME`\\n                  - `STREET`     = `S.STREET`\\n                  - `STREETNO`   = `S.STREETNO`\\n                  - `POST_CODE1` = `S.POST_CODE1`\\n                  - `CITY1`      = `S.CITY1`\\n                  - `CITY2`      = `S.CITY2`\\n                  - `EMAIL`      = `S.EMAIL`\\n           6.1.2. Treat NET master data as “empty” for these unified fields:\\n                  - Do not use `N`’s corresponding columns when populating the unified output fields for this row.\\n       ELSE\\n           6.1.3. Define unified output columns using NET data:\\n                  - `ME_MA_ID`   = `N.ME_MA_ID`\\n                  - `TITLE`      = `N.TITLE`\\n                  - `FORENAME`   = `N.FORENAME`\\n                  - `SURNAME`    = `N.SURNAME`\\n                  - `STREET`     = `N.STREET`\\n                  - `STREETNO`   = `N.STREETNO`\\n                  - `POST_CODE1` = `N.POST_CODE1`\\n                  - `CITY1`      = `N.CITY1`\\n                  - `CITY2`      = `N.CITY2`\\n                  - `EMAIL`      = `N.EMAIL`\\n           6.1.4. Treat SALES master data as “empty” for these unified fields:\\n                  - Do not use `S`’s corresponding columns when populating the unified output fields for this row.\\n       ENDIF\\n\\n   6.2. Implement step 6.1 in the final SELECT using CASE logic such as:\\n        - `ME_MA_ID = CASE WHEN S.ME_MA_ID IS NOT NULL THEN S.ME_MA_ID ELSE N.ME_MA_ID END`\\n        - similarly for `TITLE`, `FORENAME`, etc.\\n\\n7. Build final result set and export to CSV file `J09B.csv`\\n   7.1. From the joined dataset (`D` + `E` + `N` + `S`) and using the unified fields from step 6, SELECT exactly the following columns, in this logical mapping:\\n        - `Meter Reading (MR) Doc. No.` = the appropriate column from `EABLG` (e.g. `E.MR_DOC_NO` or similar; use the column that stores the meter reading document number).\\n        - `HAUS`        = `D.HAUS`\\n        - `ANLAGE`      = installation field from `D` (e.g. `D.ANLAGE` or `D.INSTALLATION`, named as `ANLAGE` in the output)\\n        - `ME_MA_ID`    = unified `ME_MA_ID` from step 6\\n        - `EQUNR`       = `D.EQUNR`\\n        - `HOUSE_NUM1`  = `D.HOUSE_NUM1`\\n        - `ENTSCHEIDUNG`= `D.ENTSCHEIDUNG`\\n        - `TITLE`       = unified `TITLE` from step 6\\n        - `FORENAME`    = unified `FORENAME`\\n        - `SURNAME`     = unified `SURNAME`\\n        - `STREET`      = unified `STREET`\\n        - `STREETNO`    = unified `STREETNO`\\n        - `POST_CODE1`  = unified `POST_CODE1`\\n        - `CITY1`       = unified `CITY1`\\n        - `CITY2`       = unified `CITY2`\\n        - `EMAIL`       = unified `EMAIL`\\n   7.2. Execute this SELECT and export the result as a CSV file named `J09B.csv`.\\n\\n8. Send the CSV to the EVU team by email\\n   8.1. Create an email message addressed to `meter.readings@evu.com`.\\n   8.2. Set an appropriate subject line, for example: `J09B Meter Reading Export`.\\n   8.3. Attach the file `J09B.csv` generated in step 7.\\n   8.4. Send the email.\\n\\n9. Delete the temporary table after exporting\\n   9.1. After confirming that the CSV has been successfully created (and ideally the email has been sent):\\n       \\n       IF table `J09B_temp` exists in the database THEN\\n           9.1.1. DROP TABLE `J09B_temp`.\\n       ELSE\\n           9.1.2. Do nothing.\\n       ENDIF"}', 'id': 'lc_23ed4476-910a-4b1f-b152-81334f7d9d7c'}]
+================================== Ai Message ==================================
+
+The process rule has been stored in the rule database under ID `J09B`.
+
+Key characteristics of rule `J09B`:
+- Copies all `decision_table` rows with `TOURS` starting `J09B` into `J09B_temp`.
+- Adds and populates `ENTSCHEIDUNG` based on number of `EQUNR` per `HAUS`, overriding to `EVU` where `HOUSE_NUM1 = 0`.
+- LEFT JOINs with `EABLG` (via INSTALLATION/ANLAGE), `NET_MASTER` and `SALES_MASTER` (via `EQUNR`).
+- For each row, prefers SALES master data over NET master data when SALES data exists; otherwise uses NET data.
+- Exports the specified columns to `J09B.csv`, emails it to `meter.readings@evu.com`, then drops `J09B_temp`.

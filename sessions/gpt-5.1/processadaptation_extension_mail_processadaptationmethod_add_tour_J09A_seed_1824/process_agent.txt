@@ -1,0 +1,1221 @@
+================================ Human Message =================================
+
+Run process with ID 'J09A'.
+================================== Ai Message ==================================
+Tool Calls:
+  retrieve_process (call_8uRifOXwyzkWmXsv9ZpVf6hZ)
+ Call ID: call_8uRifOXwyzkWmXsv9ZpVf6hZ
+  Args:
+    process_rule_id: J09A
+================================= Tool Message =================================
+Name: retrieve_process
+
+[{'type': 'text', 'text': '{"success":true,"process_rule_id":"J09A","process_rule":"Rule ID: J09A\\n\\n1. Prepare working table\\n   1.1 IF a table named `J09A_temp` already exists THEN\\n         1.1.1 Drop `J09A_temp`.\\n       ELSE\\n         1.1.2 Do nothing.\\n       ENDIF\\n   1.2 Create a new table `J09A_temp` as a copy of `decision_table` containing only rows where `TOURS` starts with `J09A` (e.g. `TOURS` LIKE `J09A%`), including all columns from `decision_table`.\\n\\n2. Add ENTSCHEIDUNG column\\n   2.1 IF column `ENTSCHEIDUNG` does not exist in `J09A_temp` THEN\\n         2.1.1 Add column `ENTSCHEIDUNG` (string type, e.g. VARCHAR(50)) to `J09A_temp`, default NULL.\\n       ELSE\\n         2.1.2 Set all values of `ENTSCHEIDUNG` in `J09A_temp` to NULL.\\n       ENDIF\\n\\n3. Apply base ENTSCHEIDUNG rules on `J09A_temp`\\n   3.1 For each distinct `HAUS` value in `J09A_temp`:\\n       3.1.1 Let `eq_count` be the count of distinct `EQUNR` for this `HAUS` in `J09A_temp`.\\n       3.1.2 IF `eq_count` < 3 THEN\\n               3.1.2.1 For all rows with this `HAUS`, set `ENTSCHEIDUNG` = \\"KSA\\".\\n             ELSE\\n               3.1.2.2 For all rows with this `HAUS`, set `ENTSCHEIDUNG` = \\"EVU\\".\\n             ENDIF\\n   3.2 For each row `r` in `J09A_temp`, apply the following overwriting rules in the given order:\\n       3.2.1 Rule for `HOUSE_NUM1 = 0`:\\n             3.2.1.1 IF `r.HOUSE_NUM1` = 0 THEN\\n                       3.2.1.1.1 Set `r.ENTSCHEIDUNG` = \\"EVU\\".\\n                     ELSE\\n                       3.2.1.1.2 Do nothing (leave `r.ENTSCHEIDUNG` as is).\\n                     ENDIF\\n       3.2.2 Rule for `HOUSE_NUM1` between 500 and 599 (inclusive):\\n             3.2.2.1 IF `r.HOUSE_NUM1` >= 500 AND `r.HOUSE_NUM1` <= 599 THEN\\n                       3.2.2.1.1 Set `r.ENTSCHEIDUNG` = \\"EVU\\".\\n                     ELSE\\n                       3.2.2.1.2 Do nothing.\\n                     ENDIF\\n       3.2.3 Rule for `HOUSE_NUM1` between 900 and 999 (inclusive):\\n             3.2.3.1 IF `r.HOUSE_NUM1` >= 900 AND `r.HOUSE_NUM1` <= 999 THEN\\n                       3.2.3.1.1 Set `r.ENTSCHEIDUNG` = \\"EVU\\".\\n                     ELSE\\n                       3.2.3.1.2 Do nothing.\\n                     ENDIF\\n       3.2.4 Rule for address area Wiblingwerde or Breckerfeld:\\n             3.2.4.1 Let `address_area` be the column in the dataset that represents the address locality/area for `r` (e.g. a city/area field).\\n             3.2.4.2 IF `address_area` (case-insensitive) is equal to \\"Wiblingwerde\\" OR equal to \\"Breckerfeld\\" THEN\\n                       3.2.4.2.1 Set `r.ENTSCHEIDUNG` = \\"EVU\\".\\n                     ELSE\\n                       3.2.4.2.2 Do nothing.\\n                     ENDIF\\n\\n4. Join with EABLG\\n   4.1 Join `J09A_temp` with table `EABLG` using the installation identifier:\\n       4.1.1 Use a LEFT JOIN from `J09A_temp` to `EABLG` on `J09A_temp.ANLAGE` = `EABLG.INSTALLATION` (or the equivalent installation key).\\n       4.1.2 Extend `J09A_temp` with all needed columns from `EABLG` (including the column that becomes `Meter Reading (MR) Doc. No.`).\\n       4.1.3 IF multiple `EABLG` rows match a single `J09A_temp` row by the join key THEN\\n               4.1.3.1 Create one output row per matching `EABLG` row (i.e. duplicate the `J09A_temp` row for each match).\\n             ELSE\\n               4.1.3.2 Keep the single joined row.\\n             ENDIF\\n\\n5. Join with NET_MASTER and SALES_MASTER\\n   5.1 Join `J09A_temp` with `NET_MASTER`:\\n       5.1.1 Use a LEFT JOIN on `J09A_temp.EQUNR` = `NET_MASTER.EQUNR`.\\n       5.1.2 Attach all relevant `NET_MASTER` columns to `J09A_temp`.\\n       5.1.3 IF multiple `NET_MASTER` rows match one `J09A_temp` row THEN\\n               5.1.3.1 Create one output row per match.\\n             ELSE\\n               5.1.3.2 Keep the single joined row.\\n             ENDIF\\n   5.2 Join the result with `SALES_MASTER`:\\n       5.2.1 Use a LEFT JOIN on `J09A_temp.EQUNR` = `SALES_MASTER.EQUNR`.\\n       5.2.2 Attach all relevant `SALES_MASTER` columns to `J09A_temp`.\\n       5.2.3 IF multiple `SALES_MASTER` rows match one `J09A_temp` row THEN\\n               5.2.3.1 Create one output row per match.\\n             ELSE\\n               5.2.3.2 Keep the single joined row.\\n             ENDIF\\n\\n6. Prefer SALES data over NET data for each row\\n   6.1 For each row `r` in the joined `J09A_temp`:\\n       6.1.1 Determine whether a SALES record is present:\\n             6.1.1.1 Let `has_sales` = TRUE if at least one key identifying column from `SALES_MASTER` (e.g. its primary key or `ME_MA_ID`) is non-NULL for `r`; otherwise `has_sales` = FALSE.\\n       6.1.2 Determine whether a NET record is present:\\n             6.1.2.1 Let `has_net` = TRUE if at least one key identifying column from `NET_MASTER` is non-NULL for `r`; otherwise `has_net` = FALSE.\\n       6.1.3 IF `has_sales` = TRUE THEN\\n               6.1.3.1 Keep all `SALES_MASTER`-derived fields as they are.\\n               6.1.3.2 Set all `NET_MASTER`-derived fields for `r` to NULL (empty), to indicate net data is not used.\\n             ELSE\\n               6.1.3.3 IF `has_net` = TRUE THEN\\n                         6.1.3.3.1 Keep all `NET_MASTER`-derived fields as they are.\\n                         6.1.3.3.2 Set all `SALES_MASTER`-derived fields for `r` to NULL.\\n                       ELSE\\n                         6.1.3.3.3 Leave both `NET_MASTER`- and `SALES_MASTER`-derived fields as NULL (no data available).\\n                       ENDIF\\n             ENDIF\\n\\n7. Flag MANDATORY_READING using EABL\\n   7.1 Build helper indicators from `EABL`:\\n       7.1.1 For each row in `EABL`, derive `creation_year` from the record’s creation date.\\n       7.1.2 For each `EQUNR` in `EABL`, compute:\\n             7.1.2.1 `has_ms_2023` = TRUE if there exists at least one `EABL` row with this `EQUNR`, `ISTABLART_TXT` = \\"Maschinelle Schätzung - SAP\\" and `creation_year` = 2023; otherwise FALSE.\\n             7.1.2.2 `has_ms_2024` = TRUE if there exists at least one `EABL` row with this `EQUNR`, `ISTABLART_TXT` = \\"Maschinelle Schätzung - SAP\\" and `creation_year` = 2024; otherwise FALSE.\\n   7.2 For each row `r` in `J09A_temp`:\\n       7.2.1 Find the values of `has_ms_2023` and `has_ms_2024` corresponding to `r.EQUNR` (default to FALSE if `EQUNR` has no entry in `EABL`).\\n       7.2.2 IF `has_ms_2023` = TRUE AND `has_ms_2024` = TRUE THEN\\n               7.2.2.1 Set `r.ENTSCHEIDUNG` = \\"MANDATORY_READING\\" (overwriting any previous value).\\n             ELSE\\n               7.2.2.2 Do nothing (keep current `ENTSCHEIDUNG`).\\n             ENDIF\\n\\n8. Export MANDATORY_READING rows\\n   8.1 Let `MR_rows` be all rows in `J09A_temp` where `ENTSCHEIDUNG` = \\"MANDATORY_READING\\".\\n   8.2 IF `MR_rows` is not empty THEN\\n         8.2.1 Create a CSV file named `J09A_MANDATORY_READING` (with appropriate `.csv` extension).\\n         8.2.2 Write a header row containing exactly these columns in this order:\\n                 1) `Meter Reading (MR) Doc. No.`\\n                 2) `HAUS`\\n                 3) `ANLAGE`\\n                 4) `ME_MA_ID`\\n                 5) `EQUNR`\\n                 6) `HOUSE_NUM1`\\n                 7) `ENTSCHEIDUNG`\\n                 8) `TITLE`\\n                 9) `FORENAME`\\n                 10) `SURNAME`\\n                 11) `STREET`\\n                 12) `STREETNO`\\n                 13) `POST_CODE1`\\n                 14) `CITY1`\\n                 15) `CITY2`\\n                 16) `EMAIL`\\n         8.2.3 For each row in `MR_rows`, output one CSV record with the values of these columns.\\n       ELSE\\n         8.2.4 Do not create the `J09A_MANDATORY_READING` file.\\n       ENDIF\\n\\n9. Send MANDATORY_READING file to internal team\\n   9.1 IF the file `J09A_MANDATORY_READING` exists AND contains at least one data row (beyond header) THEN\\n         9.1.1 Compose an email to `mandatory.reading@provider.com`.\\n         9.1.2 Set an appropriate subject (e.g. \\"J09A MANDATORY_READING export\\").\\n         9.1.3 Attach the `J09A_MANDATORY_READING` CSV file.\\n         9.1.4 Send the email using the standard mail-sending mechanism.\\n       ELSE\\n         9.1.5 Do not send an email for `J09A_MANDATORY_READING`.\\n       ENDIF\\n\\n10. Flag DIRECT_MAIL using EABL\\n   10.1 From `EABL`, compute additional indicators per `EQUNR`:\\n        10.1.1 `has_cust_2023` = TRUE if there exists at least one `EABL` row with this `EQUNR`, `ISTABLART_TXT` = \\"Ablesung durch Kunden - SAP\\" and `creation_year` = 2023; otherwise FALSE.\\n        10.1.2 `has_cust_2024` = TRUE if there exists at least one `EABL` row with this `EQUNR`, `ISTABLART_TXT` = \\"Ablesung durch Kunden - SAP\\" and `creation_year` = 2024; otherwise FALSE.\\n   10.2 For each row `r` in `J09A_temp`:\\n        10.2.1 Find `has_cust_2023` and `has_cust_2024` for `r.EQUNR` (default FALSE if none).\\n        10.2.2 IF `has_cust_2023` = TRUE AND `has_cust_2024` = TRUE AND `r.ENTSCHEIDUNG` != \\"MANDATORY_READING\\" THEN\\n                  10.2.2.1 Set `r.ENTSCHEIDUNG` = \\"DIRECT_MAIL\\".\\n                ELSE\\n                  10.2.2.2 Do nothing (keep current `ENTSCHEIDUNG`).\\n                ENDIF\\n\\n11. Export DIRECT_MAIL rows\\n   11.1 Let `DM_rows` be all rows in `J09A_temp` where `ENTSCHEIDUNG` = \\"DIRECT_MAIL\\".\\n   11.2 IF `DM_rows` is not empty THEN\\n          11.2.1 Create a CSV file named `J09A_DIRECT_MAIL` (with `.csv` extension).\\n          11.2.2 Write a header row with exactly the same 16 columns and order as in step 8.2.2:\\n                  `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`,\\n                  `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`,\\n                  `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\\n          11.2.3 For each row in `DM_rows`, output one CSV record with these column values.\\n        ELSE\\n          11.2.4 Do not create the `J09A_DIRECT_MAIL` file.\\n        ENDIF\\n\\n12. Upload DIRECT_MAIL file to send_bulk_mail service\\n   12.1 IF the file `J09A_DIRECT_MAIL` exists AND contains at least one data row THEN\\n          12.1.1 Upload `J09A_DIRECT_MAIL` to the `send_bulk_mail` service using the standard interface/protocol of that service.\\n          12.1.2 Confirm that the service accepted the file for sending direct emails to all listed customers.\\n        ELSE\\n          12.1.3 Do not call the `send_bulk_mail` service.\\n        ENDIF\\n\\n13. Export remaining rows for EVU/other processing\\n   13.1 Let `OTHER_rows` be all rows in `J09A_temp` where `ENTSCHEIDUNG` is neither \\"MANDATORY_READING\\" nor \\"DIRECT_MAIL\\" (e.g. \\"KSA\\", \\"EVU\\", or any other value).\\n   13.2 IF `OTHER_rows` is not empty THEN\\n          13.2.1 Create a CSV file named `J09A` (with `.csv` extension).\\n          13.2.2 Write a header row with the same 16 columns and order as in step 8.2.2.\\n          13.2.3 For each row in `OTHER_rows`, output one CSV record with these column values.\\n        ELSE\\n          13.2.4 Do not create the `J09A` file.\\n        ENDIF\\n\\n14. Send J09A file to EVU team\\n   14.1 IF the file `J09A` exists AND contains at least one data row THEN\\n          14.1.1 Compose an email to `meter.readings@evu.com`.\\n          14.1.2 Set an appropriate subject (e.g. \\"J09A export\\").\\n          14.1.3 Attach the `J09A` CSV file.\\n          14.1.4 Send the email using the standard mail-sending mechanism.\\n        ELSE\\n          14.1.5 Do not send an email for `J09A`.\\n        ENDIF\\n\\n15. Cleanup\\n   15.1 IF table `J09A_temp` exists THEN\\n          15.1.1 Drop table `J09A_temp`.\\n        ELSE\\n          15.1.2 Do nothing.\\n        ENDIF"}', 'id': 'lc_99050b73-44f8-497e-88a4-0fe55dbda297'}]
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_rmPW7IfCOod1AP8jkac4KEqV)
+ Call ID: call_rmPW7IfCOod1AP8jkac4KEqV
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":true,"schema":"# Table: net_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: sales_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: decision_table\\n## column_name (type) description\\nHAUS (TEXT) House identifier\\nANLAGE (TEXT) Installation/facility identifier\\nABLEINH (TEXT) Reading unit identifier\\nTOUR (TEXT) Tour/route identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nHOUSE_NUM1 (INTEGER) House/building number\\nPOST_CODE1 (INTEGER) Postal code\\nEQUNR (TEXT) Equipment Number\\n\\n# Table: eabl\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nEQUNR (TEXT) Equipment Number\\nGeplante Ableseart (INTEGER) Planned reading type\\nMR type (TEXT) Meter reading type code\\nMR TYPE TEXT (TEXT) Meter Reading type description\\nMR category (TEXT) Meter reading category\\nISTABLART_TXT (TEXT) Actual reading type description (SAP)\\nLOGIKZW (TEXT) Logic indicator\\nKENNZIFF (TEXT) Identification number\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\n\\n# Table: eablg\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nInstallation (TEXT) Installation identifier\\nMeter Reading reason (INTEGER) Meter reading reason code\\nMR Reason - Text (TEXT) Meter reading reason description\\nScheduled MR Date (TEXT) Scheduled meter reading date\\nMeter Reading unit (TEXT) Meter reading unit\\nMeter Reading (MR) Doc. No..1 (INTEGER) Secondary/duplicate Meter Reading Document Number\\n\\n# Table: eanl\\n## column_name (type) description\\nInstallation (TEXT) Installation identifier\\nInstallation type (TEXT) Type of installation\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\nSPARTE_TEXT (TEXT) Division/sector description\\nAKLASSE (TEXT) Customer class code\\nAKLASSE_TEXT (TEXT) Customer class description\\nTARIFTYP (TEXT) Tariff type code\\nTARIFTYP_TEXT (TEXT) Tariff type description\\nBRANCHE (TEXT) Industry/sector code\\nBRANCHE_TEXT (TEXT) Industry/sector description\\nABLEINH (TEXT) Reading unit identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nHAUS (TEXT) House identifier\\n\\n# Table: process_rules\\n## column_name (type) description\\nprocess_rule_id (TEXT) PRIMARY KEY - Process rule identifier\\nprocess_rule (TEXT) NOT NULL - Process rule text/description"}', 'id': 'lc_8746430f-9f77-4c50-91b7-777c7d241aac'}]
+================================== Ai Message ==================================
+
+Need to execute multi-step SQL + CSV + email process using tools. Note schema: decision_table has TOUR not TOURS; EABLG table name is lowercase eablg; INSTALLATION col; EABL table lowercase eabl; etc. Need to adapt but follow intent. Also we must use prepare_csv for exports, send_mail for emails, send_bulk_mail for bulk. Need to check existence of table/column via PRAGMA or sqlite_master. Should run SQL systematically, possibly using multi_tool_use.parallel for independence (e.g., building EABL indicators could be parallel with temp table prep? But rules reference that table; but we can compute indicators later. However wrapper insists: "Use parallel even if prompt suggests sequential, when they can operate in parallel." But many steps are sequential dependencies, better not parallel. We can still use run_sqlite_query sequentially.
+
+We must be exact to description, but we can interpret where schema differences. Points:
+
+1.1 Drop J09A_temp if exists: SQLite syntax: DROP TABLE IF EXISTS J09A_temp.
+
+1.2 Create J09A_temp as copy of decision_table rows where TOUR like 'J09A%'. But description uses TOURS; schema has TOUR. We'll use TOUR.
+
+SQL: CREATE TABLE J09A_temp AS SELECT * FROM decision_table WHERE TOUR LIKE 'J09A%';
+
+But later steps require adding ENTSCHEIDUNG column, plus result of joins (EABLG, NET_MASTER, SALES_MASTER). However schema uses lowercase names; SQL is case-insensitive for identifiers but tools list names as net_master etc. We'll use them.
+
+2) Check if ENTSCHEIDUNG col exists. Since we just created J09A_temp as copy of decision_table, which doesn't have ENTSCHEIDUNG. But we should follow process generically using pragma table_info.
+
+If not exist, ALTER TABLE J09A_temp ADD COLUMN ENTSCHEIDUNG TEXT; values default null. If exists, UPDATE J09A_temp SET ENTSCHEIDUNG = NULL.
+
+3.1 For each distinct HAUS: we need eq_count count distinct EQUNR for that HAUS in J09A_temp. Then if eq_count < 3, ENTSCHEIDUNG='KSA' else 'EVU'. This is group-based logic; we can do via subquery: update ENTSCHEIDUNG by join. Implementation: UPDATE J09A_temp SET ENTSCHEIDUNG = CASE WHEN haus IN (select haus from J09A_temp group by haus having count(distinct equnr) < 3) THEN 'KSA' ELSE 'EVU' END; But need to handle HAUS null? Without specification; but fine.
+
+3.2 apply overwriting rules—these are row-level conditional updates. Implementation as multiple UPDATE statements:
+
+3.2.1 HOUSE_NUM1=0 => set ENTSCHEIDUNG='EVU'. Provided HOUSE_NUM1 column exists in decision_table; yes. So: UPDATE J09A_temp SET ENTSCHEIDUNG='EVU' WHERE HOUSE_NUM1 = 0;
+
+3.2.2 500-599: UPDATE where between 500 and 599.
+
+3.2.3 900-999: similar.
+
+3.2.4 address_area column representing locality; but table J09A_temp has CITY1 and CITY2. Which should be used as "address_area"? Process says: "Let 'address_area' be the column in the dataset that represents the address locality/area for r (e.g. a city/area field)." We have CITY1 described as "City name" and CITY2 as district/additional city information; either could hold localities. Without more info, choose CITY1 as address_area, stating as assumption would be best but tool can't have commentary; but in final answer we might clarify. Implementation: UPDATE J09A_temp SET ENTSCHEIDUNG='EVU' WHERE lower(CITY1) IN ('wiblingwerde','breckerfeld'); (use lower for case-insensitive). SQLite lower function.
+
+4. Join with EABLG: table is eablg. Need to "extend J09A_temp with all needed columns" and duplicate rows (one per match). However SQLite ALTER TABLE ADD COLUMN only; joining & duplicating is easier by creating new table. But step 1: we already built J09A_temp with only decision_table rows. Step 4 expects we'll join with eablg and still call table J09A_temp. Could implement by:
+
+- Create new table J09A_step4 as SELECT j.*, e."Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No." FROM J09A_temp j LEFT JOIN eablg e ON j.ANLAGE = e.Installation; But we also need "extend with all needed columns from EABLG (including MR doc no)". Which are all columns of eablg: 'Meter Reading (MR) Doc. No.', 'Installation', 'Meter Reading reason', 'MR Reason - Text', 'Scheduled MR Date', 'Meter Reading unit', 'Meter Reading (MR) Doc. No..1'. But caution: column names have spaces & periods; quoting required. Tools definitions show them; we must match to use in SQL.
+
+Because SQL uses column alias quoting; e.g., SELECT e."Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No." ; For all columns, simpler: SELECT j.*, e.*; but this leads to duplicate column names 'Installation', 'Meter Reading (MR) Doc. No.' maybe duplicates none from J09A_temp so okay. But we must ensure there is a single column named "Installation" not used elsewhere. reference: J09A_temp has ANLAGE not Installation. So fine.
+
+But J09A_temp currently lacks those columns; if we run CREATE TABLE new_j AS SELECT..., we built duplicates per join requirement: left join replicates J09A_temp rows for each matched eablg row; if none, one row with nulls.
+
+We then drop old J09A_temp and rename new_j to J09A_temp. This respects pipeline while abiding by process's notion of "extend J09A_temp". Tools allow DDL.
+
+BUT: Step 1.1 says to drop eventual existing J09A_temp at start; step 15 cleans again, that's fine.
+
+5. Join with NET_MASTER and SALES_MASTER.
+
+Note schema names net_master, sales_master; but we might previously not imported them; they exist. Implementation similar:
+
+- Create J09A_step5a as SELECT j.*, n.TITLE AS net_TITLE, ... etc? However step 6 expects to be able to nullify "NET_MASTER-derived fields" vs "SALES_MASTER-derived fields." If we use distinct prefixes, we can clearly null them. But CSV export columns 8-16 (TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL) should represent final chosen data (NET or SALES preference) or original? Process step 6 says "Prefer SALES data over NET data for each row" by nulling whichever is not used. But we must also ensure that, at the end, these 16 fields' values are one set representing final addresses. However step 5.1 says 5.1.2 attach all relevant NET_MASTER columns to J09A_temp. Step 5.2 attaches SALES_MASTER. Step 6.1.3.2/3 handles net_ vs sales_ fields but doesn't say to have "merged" generic columns; but step 8.2.2's header uses unprefixed TITLE etc. Which columns should we use? The description earlier step 5 apparently implies we join to bring master data; but they didn't rename columns, so default they'd conflict: net_master and sales_master both have same column names (TITLE etc). If we simply use SELECT j.*, n.*, s.*; column duplicates names; SQLite will differentiate internally, but referencing by name becomes ambiguous. However, the specified DB schema & tools are more generic; process description uses conceptual.
+
+To implement step 6 "set all NET_MASTER-derived fields to NULL" as separate from SALES-derived fields, we should explicitly alias them.
+
+However step 8 says header just 'TITLE', 'FORENAME' etc. Which ones? Considering process design for preference, probably the intention is: after preferring sales, there should be only one set of contact columns (coming from whichever priority). That suggests we should do merges:
+
+Option A: after step 6, another step merging columns into generic ones, but not in spec.
+
+Option B: Instead of separate columns, we join producing columns net_TITLE,net_FORENAME,... and sales_TITLE,... . In step 6, we null whichever set not used. Step 8 expects header 'TITLE' etc, but we can build CSV from COALESCE(sales_title, net_title) as TITLE etc on-the-fly in SELECT.
+
+Spec step 8.2.3: "For each row ... output one CSV record with the values of these columns." That does not say they must exist as columns; we can compute while exporting. Tools' prepare_csv takes a SQL query, we can use expressions with alias names matching header. So we can have SELECT ... AS "TITLE", etc. That works neatly.
+
+Thus implement: join to add net_* and sales_* columns, not interfering with base columns.
+
+So Step 5.1: Extend J09A_temp with relevant net_master columns. But J09A_temp currently has some columns with same names (like CITY1) from decision_table; net_master also uses them. When join uses alias names, we are "attaching all relevant" as net_x. That's consistent.
+
+Implementation detail: we will again use create table & rename approach since we cannot easily add many columns & fill them; but we can just create new table via SELECT j.*, n.TITLE AS net_TITLE, ... etc; rename.
+
+Important: Step 5.2: join with SALES_MASTER also; join by EQUNR. But we already appended net_master columns; we can join with both simultaneously in one statement to avoid repeated restructure: SELECT j.*, n.TITLE AS net_TITLE, ..., s.TITLE AS sales_TITLE, ... FROM J09A_temp j LEFT JOIN net_master n ON j.EQUNR = n.EQUNR LEFT JOIN sales_master s ON j.EQUNR = s.EQUNR;
+
+But process 5.1 & 5.2 sequential; but logically equivalent. The wrapper instructs follow every step "exactly" but not necessarily as separate SQL statements; but to be safe, we might try sequential: first join with net_master to new table; then join that result with sales_master. However, if we sequentially join, we must keep net_ prefix; second join must also preserve those & add sales_ prefix. Could do.
+
+Even combining into one query still satisfies semantics, as final results same. "Follow steps exactly" might mean maintain semantics; I'd treat that as acceptable. However to avoid interpretation risk, we can still conceptually abide; but it's fine either.
+
+Let's check dependencies: Step 5's duplication behavior "if multiple net_master rows match one J09A_temp row, create one output row per match." That is exactly what left join would do. Provided there can be duplicates.
+
+Now Step 6: determine has_sales & has_net. They refer to "key identifying columns" like primary key or ME_MA_ID; from schema of net_master and sales_master we only know EQUNR, TITLE, etc; there is no primary key. We'll choose to consider presence of any not-null row in joined tables; but we should pick an "identifying column." The only candidate is EQUNR itself; but that's also in base table. However net_master's EQUNR will be same as J09A_temp.EQUNR and non-null, gives has_net true even if join didn't match? Actually, left join: for unmatched rows, columns from net_master are null, including EQUNR. So we can define has_net as (net_EQUNR IS NOT NULL). However we didn't plan to alias net_EQUNR yet; but we used J09A_temp.EQUNR as eq base; we can alias n.EQUNR as net_EQUNR; same for sales_EQUNR. That is consistent.
+
+So in join selection, we add n.EQUNR AS net_EQUNR, s.EQUNR AS sales_EQUNR, plus other columns with prefix.
+
+Now Step 6: For each row: has_sales if sales_EQUNR not null; has_net if net_EQUNR not null. Implementation: We must then "Set all NET_MASTER-derived fields ... to NULL" if has_sales is true. Derived fields include net_EQUNR & net_TITLE,... etc. Similarly for sales. We can run SQL:
+
+UPDATE J09A_temp SET net_EQUNR=NULL, net_TITLE=NULL, ..., net_EMAIL=NULL WHERE sales_EQUNR IS NOT NULL;
+
+and vice versa for cases where no sales but net present (no updates: only clearing sales fields). Step 6.1.3.3.3 says leave both as null if no data. That happens automatically.
+
+But we also must "Keep all SALES_MASTER-derived fields as they are" when has_sales true; we do not modify them.
+
+In second clause, "IF has_net=true THEN keep net fields as they are; set sales fields to NULL" but we must restrict to rows with has_sales=false and has_net=true. That logically ensures if both (rare), we treat as sales because we wrote separate update for has_sales first? However spec says: If has_sales=true then prefer sales; else if has_net true use net. With two separate updates, we need to enforce order: first handle has_sales, clearing net fields; second update should not then treat record as has_net maybe because net_EQUNR is not null? Actually we will set net_EQUNR null in first update, so next update's where clause 'sales_EQUNR IS NULL AND net_EQUNR IS NOT NULL' ensures we don't re-change those rows. So we must design where accordingly.
+
+So:
+
+UPDATE J09A_temp SET net_EQUNR=NULL, net_TITLE=NULL, ... WHERE sales_EQUNR IS NOT NULL;
+
+UPDATE J09A_temp SET sales_EQUNR=NULL, sales_TITLE=NULL, ... WHERE sales_EQUNR IS NULL AND net_EQUNR IS NOT NULL;
+
+No need to handle cases with both null.
+
+Now Step 7: 'Flag MANDATORY_READING using EABL'.
+
+We must work with table eabl; but description uses EABL. Steps:
+
+7.1.1 For each row, derive creation_year from creation date. Column 'Record created on (TEXT)' maybe 'YYYY-MM-DD' or such; no detail. We'll parse as substr('Record created on',1,4) as year. Might suffice.
+
+7.1.2 For each EQUNR in EABL compute has_ms_2023, has_ms_2024 per definition. Implementation best by creating aggregated helper table eabl_ms_flags.
+
+Simpler: we can directly compute when needed using IN (SELECT...) etc, but Step 7.1 says we should compute indicators; but semantics wise, we can use a derived table or aggregator.
+
+Given complexity of later also requiring 10.* for 'Ablesung durch Kunden - SAP', might as well create aggregated table eq_flags with has_ms_2023, has_ms_2024, has_cust_2023, has_cust_2024.
+
+But Step 7 and 10 refer separately; but spec says 7.1, 10.1; still semantics same.
+
+However to follow steps "exactly", we can create aggregated table eabl_flags as SELECT EQUNR, max(... ), etc. Implementation:
+
+CREATE TABLE eabl_flags AS
+SELECT
+  EQUNR,
+  MAX(CASE WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP' AND substr("Record created on",1,4) = '2023' THEN 1 ELSE 0 END) AS has_ms_2023,
+  MAX(CASE WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP' AND substr("Record created on",1,4) = '2024' THEN 1 ELSE 0 END) AS has_ms_2024,
+  MAX(CASE WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP' AND substr("Record created on",1,4) = '2023' THEN 1 ELSE 0 END) AS has_cust_2023,
+  MAX(CASE WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP' AND substr("Record created on",1,4) = '2024' THEN 1 ELSE 0 END) AS has_cust_2024
+FROM eabl
+GROUP BY EQUNR;
+
+That simultaneously precomputes all flags for steps 7 & 10. As per spec, 7.1.2 & 10.1.*.
+
+Then Step 7.2: For each row r in J09A_temp, find has_ms_2023 & has_ms_2024 for r.EQUNR (default false if no entry). Implementation: join J09A_temp to eabl_flags via left join in UPDATE.
+
+Simpler: UPDATE J09A_temp SET ENTSCHEIDUNG='MANDATORY_READING' WHERE EQUNR IN ( SELECT EQUNR FROM eabl_flags WHERE has_ms_2023 = 1 AND has_ms_2024 = 1);
+
+But we must treat booleans: we used 1/0.
+
+Better: create, or we can left join mapping fields; but we only need to set ENTSCHEIDUNG for eqnr where both flags true.
+
+So: UPDATE J09A_temp SET ENTSCHEIDUNG='MANDATORY_READING' WHERE EQUNR IN (SELECT EQUNR FROM eabl_flags WHERE has_ms_2023 = 1 AND has_ms_2024 = 1);
+
+Works.
+
+Step 8: Export MANDATORY_READING rows to CSV using prepare_csv. 8.1: define MR_rows as ENTSCHEIDUNG='MANDATORY_READING'. 8.2: if not empty, create file 'J09A_MANDATORY_READING'. Tools 'prepare_csv' returns success & filename; we must choose filename param 'J09A_MANDATORY_READING'. However it automatically adds .csv. But we must ensure there is at least one data row. Tool may not check; we might have to check ourselves first using a COUNT query. So Step 8.1/8.2: we run SELECT COUNT(*) etc.
+
+We must also match header columns names exactly; prepare_csv takes SQL query; its column headers line will be names from SELECT alias. So we must select them in proper order and alias accordingly. Step 8's header includes 'Meter Reading (MR) Doc. No.' from EABLG join.
+
+What is column name inside our J09A_temp after join? In step 4, we left join eablg with j.* and e.*, so column is eablg."Meter Reading (MR) Doc. No." which is "Meter Reading (MR) Doc. No." string; we didn't alias. After we created new J09A_temp from SELECT j.*, e.*; column names remain; but we must verify quoting; though when we select with *, columns from e.* keep names as defined; no alias weirdness.
+
+But there might also be 'Meter Reading (MR) Doc. No..1'; we only need the one without .1.
+
+So for CSV we can write query:
+
+SELECT
+  "Meter Reading (MR) Doc. No.",
+  HAUS,
+  ANLAGE,
+  ME_MA_ID,
+  EQUNR,
+  HOUSE_NUM1,
+  ENTSCHEIDUNG,
+  -- Now contact data selection: prefer sales over net, as per step 6 modifications. Instead of coalesce, we might use coalesce(sales_TITLE, net_TITLE, TITLE) ??? but we already chose to keep both net_* and sales_*; Step 6 ensures: when sales present, we set net to null; when net used only, we set sales to null. But contact data fields exist only in derived sets plus maybe original decision_table's CITY1 etc. To align with preference, we might choose:
+
+  COALESCE(sales_TITLE, net_TITLE) AS TITLE,
+  COALESCE(sales_FORENAME, net_FORENAME) AS FORENAME,
+  etc.
+
+But spec step 6 doesn't mention coalesce; they talk about net vs sales derived. However, since each row will only have one non-null among each pair, COALESCE(sales_TITLE, net_TITLE) equals whichever is best; but we could also just use sales_TITLE + net_TITLE via case. Equivalent.
+
+Given we don't yet have columns from original table named exactly; decision_table has CITY1, but net_master & sales_master also have CITY1; we have these alias-d names. However we also might not have saved them; we appended net_CITY1, sales_CITY1 etc. So we can rely on those.
+
+However, what if no net nor sales for row? Our SELECT will produce all null values except maybe base table's contact info; but spec seems to rely solely on master data. Nothing ensures decision_table has names, except 'CITY1', 'CITY2', 'POST_CODE1' etc but not TITLE etc. So we prefer master data; if none, we output nulls. That matches step 6.1.3.3.
+
+But to compute `COALESCE(sales_TITLE, net_TITLE)` we must check we have columns with such names created in join step.
+
+Therefore Step 5 join must create columns with these alias names:
+
+net_TITLE, net_FORENAME, net_SURNAME, net_STREET, net_STREETNO, net_POST_CODE1, net_CITY1, net_CITY2, net_EMAIL, net_EQUNR (for flag detection). For sales similarly sales_.
+
+When we run SELECT for CSV, we can base contact data on coalesce(sales_*, net_*).
+
+But we must also ensure J09A_temp already includes ME_MA_ID; yes from decision_table.
+
+Also "Meter Reading (MR) Doc. No." column location: from eablg join.
+
+Ok.
+
+For Step 8, we must first check if rows exist: run SELECT COUNT(*) FROM J09A_temp WHERE ENTSCHEIDUNG='MANDATORY_READING'; If > 0, call prepare_csv with SQL prepared. That SQL must filter ENTSCHEIDUNG = 'MANDATORY_READING'. We'll pass filename 'J09A_MANDATORY_READING'.
+
+Need to handle quoting of columns with spaces; in SELECT, we must double quote them: "Meter Reading (MR) Doc. No." inside SQL string.
+
+9.1: If file J09A_MANDATORY_READING exists AND non-empty, send email to mandatory.reading@provider.com with subject & attach file. Tools: send_mail takes file_path & email & email_address. But we only know path from prepare_csv's return: likely { success: true, filename: 'sessions/<session>/J09A_MANDATORY_READING.csv'} or similar. We'll check after tool call. We'll only call send_mail if rows>0 and prepare_csv success; also conceptually ensures non-empty. Compose email body in 'email' param; include short message.
+
+10: Already built flags table eabl_flags; we simply set ENTSCHEIDUNG='DIRECT_MAIL' for rows with flags has_cust_2023=1 AND has_cust_2024=1 and ENTSCHEIDUNG != 'MANDATORY_READING'.
+
+Implementation:
+
+UPDATE J09A_temp SET ENTSCHEIDUNG='DIRECT_MAIL' WHERE ENTSCHEIDUNG != 'MANDATORY_READING' AND EQUNR IN (SELECT EQUNR FROM eabl_flags WHERE has_cust_2023 = 1 AND has_cust_2024 = 1);
+
+11: Export DIRECT_MAIL rows analog to step 8 using prepare_csv (maybe after count). SELECT query with ENTSCHEIDUNG='DIRECT_MAIL'. We'll still use COALESCE(sales_*, net_*). Filename 'J09A_DIRECT_MAIL'.
+
+12: If file exists/non-empty -> call send_bulk_mail with csv_file_path being returned path.
+
+13: Export remaining rows: ENTSCHEIDUNG NOT IN ('MANDATORY_READING','DIRECT_MAIL'). Query accordingly. Use prepare_csv with filename 'J09A'.
+
+14: If file exists & non-empty -> send_mail to meter.readings@evu.com attach path & body.
+
+15: Cleanup drop J09A_temp if exists; also drop eabl_flags maybe; though description only says J09A_temp; but we created eabl_flags aux table, not specified. Could leave it; but better drop to keep DB clean. However instruct says "follow steps exactly"; additional cleanup not prohibited. But we may avoid drop if we want to keep for possible reuse; but the process didn't mention; yet internal though; But we added new persistent table; careful. Maybe better to create eabl_flags as temporary view or use CTE rather than persistent. However tool run_sqlite_query supports DDL; we can't create temporary view easily? Actually we can:
+
+CREATE TEMP TABLE eabl_flags AS SELECT ... ; This ensures it is session-local and likely auto-dropped when connection closes; though environment persists per conversation; but we might not worry.
+
+But it might not allow 'TEMP' in SQLite? yes 'CREATE TEMP TABLE'. Tools uses same connection in this session; but dropping isn't necessary, but fine.
+
+Alternative we don't create table at all; we can compute using subqueries in updates. For Step 7 & 10, we can use correlated subqueries each referencing eabl. That would avoid extraneous table. But they require scanning eabl multiple times; but fine for this environment. However process specifically says step 7.1 building helper indicators etc; but that's conceptual; no requirement to physically create a table. So we can avoid new table; that's better.
+
+But we must implement 7.1's semantics though. We'll do:
+
+-- Step 7.2 update MR decisions:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'MANDATORY_READING'
+WHERE EQUNR IN (
+  SELECT EQUNR
+  FROM eabl
+  GROUP BY EQUNR
+  HAVING
+    SUM(CASE WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+             AND substr("Record created on",1,4) = '2023'
+         THEN 1 ELSE 0 END) > 0
+    AND
+    SUM(CASE WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+             AND substr("Record created on",1,4) = '2024'
+         THEN 1 ELSE 0 END) > 0
+);
+
+This compresses conditions in one query; from 'exists at least one row per year'.
+
+Similarly Step 10:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'DIRECT_MAIL'
+WHERE ENTSCHEIDUNG != 'MANDATORY_READING'
+  AND EQUNR IN (
+    SELECT EQUNR
+    FROM eabl
+    GROUP BY EQUNR
+    HAVING
+      SUM(CASE WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+               AND substr("Record created on",1,4) = '2023' THEN 1 ELSE 0 END) > 0
+      AND
+      SUM(CASE WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+               AND substr("Record created on",1,4) = '2024' THEN 1 ELSE 0 END) > 0
+);
+
+This approach does "Compute indicators per EQUNR" logically within aggregator; we don't explicit store.
+
+Now we must actually run SQLs using run_sqlite_query sequentially & run prepare_csv & send_mail etc; some maybe use multi_tool_use.parallel when independent.
+
+Which tasks are independent? Database steps must be sequential because they transform table; can't parallel. After we output CSVs we can run send_mail / send_bulk_mail—they depend on CSV creation; sequential. So no good candidate for parallel; we might skip multi_tool_use.parallel.
+
+Given developer instruct says "when instructed to execute a process by ID, must use retrieve_process, then follow steps exactly; may use other tools as needed." It doesn't force parallel tool use. Multi-tool wrapper says should be used in parallel if possible but not necessary; but no tasks.
+
+Let's now plan SQL steps precisely, with quoting.
+
+Important: DB schema names: net_master, sales_master, decision_table, eabl, eablg, eanl, process_rules. These appear in get_db_schema.
+
+We must pay attention to column names with spaces and parentheses.
+
+In SQLite, quoting such columns: "Meter Reading (MR) Doc. No." (with double quotes). Also 'Record created on' has spaces; also 'MR TYPE TEXT', etc.
+
+Also column names apparently 'Installation', 'Meter Reading reason', 'MR Reason - Text', 'Scheduled MR Date', 'Meter Reading unit', 'Meter Reading (MR) Doc. No..1'.
+
+Spacing is EXACT. We'll copy from schema.
+
+But we also must check: 'TOUR' vs process description uses 'TOURS'. Use 'TOUR'.
+
+Also ensure we select the right localities eq 'Wiblingwerde', 'Breckerfeld' by case-insensually; we must call lower(CITY1) IN ('wiblingwerde','breckerfeld').
+
+Edgecases: HAUS contains null; eq_count for groups with null; group by uses null values; eq_count over these dev; but we treat normally.
+
+Now we must start using tools: We'll call run_sqlite_query sequentially with appropriate commands.
+
+Let's write SQL and tool calls in detail. Use commentary channel for tool calls.
+
+Step 1:
+
+1.1 DROP TABLE IF EXISTS J09A_temp;
+
+1.2 CREATE TABLE J09A_temp AS
+    SELECT *
+    FROM decision_table
+    WHERE TOUR LIKE 'J09A%';
+
+Important: check column name; get_db_schema: 'TOUR (TEXT) Tour/route identifier'; But description uses 'TOURS'; correct.
+
+So call run_sqlite_query once with combined statements or two calls? Tools doc expects single sqlite_command string; we may include both statements separated by semicolon; but watchers may treat; but safer to call separately to ensure robust; but both valid in SQLite.
+
+Let's call separately.
+
+Then Step 2:
+
+2.1 Check each column: PRAGMA table_info('J09A_temp'); See results; but tool returns generic; we must parse to see if ENTSCHEIDUNG there.
+
+Call run_sqlite_query with "PRAGMA table_info('J09A_temp');". Tools returns rows; we search in code. However ChatGPT environment has no code-run; but we can inspect inline; but we don't know actual DB content; but J09A_temp is new copy, no ENTSCHEIDUNG. But still we should confirm for general process; but we can make assumption; yet instructions say to follow process EXACT; but 2.1 branch will always choose 'column does not exist' as we know; but verifying by PRAGMA is more robust.
+
+We can call PRAGMA and check results inside reasoning; we can examine tool's JSON output; it will show columns list; we check whether any row's 'name' equals 'ENTSCHEIDUNG'; then we issue appropriate SQL:
+
+Given J09A_temp is new copy, we expect they won't. We'll still do.
+
+Then step 2.1.1: 'Add column ENTSCHEIDUNG (string type, e.g. VARCHAR(50)) to J09A_temp'; but SQLite uses TEXT; we can use 'ALTER TABLE J09A_temp ADD COLUMN ENTSCHEIDUNG TEXT;'. Done.
+
+If existed, we would 'UPDATE J09A_temp SET ENTSCHEIDUNG = NULL;'.
+
+Now Step 3:
+
+3.1: eq_count-based ENTSCHEIDUNG.
+
+We can implement in one SQL instead of "For each distinct HAUS" loops; but semantics same.
+
+Given ENTSCHEIDUNG currently all null; but we set unconditional.
+
+SQL:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = CASE
+  WHEN HAUS IN (
+    SELECT HAUS
+    FROM J09A_temp
+    GROUP BY HAUS
+    HAVING COUNT(DISTINCT EQUNR) < 3
+  )
+  THEN 'KSA'
+  ELSE 'EVU'
+END;
+
+But we must ensure we treat HAUS with null: In subquery, group by HAUS; null group; we still treat; but can we join by 'HAUS IN (SELECT HAUS...)' when HAUS is null? For rows with HAUS null, condition HAUS IN (NULL) is unknown -> false, so they go to ELSE 'EVU'; eq_count still consistent? They would be included in subquery; but we ignore them; but spec maybe doesn't handle. Alternative more robust: join using correlated expression; but replic. However that's fine.
+
+Now 3.2.1 etc: updates overriding ENTSCHEIDUNG.
+
+SQL:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE HOUSE_NUM1 = 0;
+
+Then 3.2.2:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE HOUSE_NUM1 BETWEEN 500 AND 599;
+
+3.2.3:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE HOUSE_NUM1 BETWEEN 900 AND 999;
+
+Note that these overs rule 3.2.1 but they can apply; but 3.2.1.1.1 covers HOUSE_NUM1=0; not overlapping.
+
+3.2.4: address area; we choose CITY1.
+
+SQL:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE lower(CITY1) IN ('wiblingwerde', 'breckerfeld');
+
+Now Step 4: join with eablg.
+
+Important: eablg's 'Installation' column matches ANLAGE. So we left join J09A_temp j with eablg g on j.ANLAGE = g.Installation.
+
+We must ensure we create new table with j.* and g.* while replicating row multiplicities. Use:
+
+CREATE TABLE J09A_temp_join_eablg AS
+SELECT j.*, g.*
+FROM J09A_temp j
+LEFT JOIN eablg g
+  ON j.ANLAGE = g.Installation;
+
+Then drop old J09A_temp; rename new:
+
+DROP TABLE J09A_temp;
+ALTER TABLE J09A_temp_join_eablg RENAME TO J09A_temp;
+
+Potential issue: If we don't use alias for g.* columns, some columns might conflict names from J09A_temp; but currently J09A_temp doesn't have 'Installation', 'Meter Reading (MR) Doc. No.' etc; so no issue. However maybe 'Meter Reading (MR) Doc. No..1' etc; but all unique.
+
+Thus Step 4 complete.
+
+Step 5: join with net_master & sales_master.
+
+Given J09A_temp now includes base columns + EABLG columns; we now join J09A_temp j to net_master n on j.EQUNR = n.EQUNR, and optionally to sales_master s on j.EQUNR = s.EQUNR. We'll get columns:
+
+n.EQUNR AS net_EQUNR,
+n.TITLE AS net_TITLE,
+n.FORENAME AS net_FORENAME,
+n.SURNAME AS net_SURNAME,
+n.STREET AS net_STREET,
+n.STREETNO AS net_STREETNO,
+n.POST_CODE1 AS net_POST_CODE1,
+n.CITY1 AS net_CITY1,
+n.CITY2 AS net_CITY2,
+n.EMAIL AS net_EMAIL,
+
+and similarly for s.* with 'sales_' prefix plus sales_EQUNR.
+
+Given spec 5.1 & 5.2 separate, but we can represent them via single SELECT statement:
+
+CREATE TABLE J09A_temp_join_master AS
+SELECT
+  j.*,
+  n.EQUNR AS net_EQUNR,
+  n.TITLE AS net_TITLE,
+  n.FORENAME AS net_FORENAME,
+  n.SURNAME AS net_SURNAME,
+  n.STREET AS net_STREET,
+  n.STREETNO AS net_STREETNO,
+  n.POST_CODE1 AS net_POST_CODE1,
+  n.CITY1 AS net_CITY1,
+  n.CITY2 AS net_CITY2,
+  n.EMAIL AS net_EMAIL,
+  s.EQUNR AS sales_EQUNR,
+  s.TITLE AS sales_TITLE,
+  s.FORENAME AS sales_FORENAME,
+  s.SURNAME AS sales_SURNAME,
+  s.STREET AS sales_STREET,
+  s.STREETNO AS sales_STREETNO,
+  s.POST_CODE1 AS sales_POST_CODE1,
+  s.CITY1 AS sales_CITY1,
+  s.CITY2 AS sales_CITY2,
+  s.EMAIL AS sales_EMAIL
+FROM J09A_temp j
+LEFT JOIN net_master n ON j.EQUNR = n.EQUNR
+LEFT JOIN sales_master s ON j.EQUNR = s.EQUNR;
+
+Then drop old & rename.
+
+This ensures we have all relevant columns.
+
+Now Step 6: 'Prefer SALES data over NET data'.
+
+Define has_sales true if sales_EQUNR not null; has_net true if net_EQUNR not null.
+
+Perform 2 updates:
+
+-- 6.1.3.2 net to null where has_sales:
+
+UPDATE J09A_temp
+SET
+  net_EQUNR = NULL,
+  net_TITLE = NULL,
+  net_FORENAME = NULL,
+  net_SURNAME = NULL,
+  net_STREET = NULL,
+  net_STREETNO = NULL,
+  net_POST_CODE1 = NULL,
+  net_CITY1 = NULL,
+  net_CITY2 = NULL,
+  net_EMAIL = NULL
+WHERE sales_EQUNR IS NOT NULL;
+
+-- 6.1.3.3.1 & 6.1.3.3.2: for rows with has_net true but no sales, set SALES-derived fields to NULL; though they may already be null but ensures.
+
+UPDATE J09A_temp
+SET
+  sales_EQUNR = NULL,
+  sales_TITLE = NULL,
+  sales_FORENAME = NULL,
+  sales_SURNAME = NULL,
+  sales_STREET = NULL,
+  sales_STREETNO = NULL,
+  sales_POST_CODE1 = NULL,
+  sales_CITY1 = NULL,
+  sales_CITY2 = NULL,
+  sales_EMAIL = NULL
+WHERE sales_EQUNR IS NULL AND net_EQUNR IS NOT NULL;
+
+Now Step 7: MANDATORY_READING.
+
+As earlier, we can do aggregated update.
+
+But we must check EABL table name: 'eabl' from schema. Column 'ISTABLART_TXT (TEXT) Actual reading type description (SAP)'; 'Record created on (TEXT)'.
+
+Important: quoting 'Record created on' with double quotes. 'ISTABLART_TXT' no spaces.
+
+SQL:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'MANDATORY_READING'
+WHERE EQUNR IN (
+  SELECT EQUNR
+  FROM eabl
+  GROUP BY EQUNR
+  HAVING
+    SUM(CASE
+          WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+           AND substr("Record created on", 1, 4) = '2023'
+          THEN 1 ELSE 0
+        END) > 0
+    AND
+    SUM(CASE
+          WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+           AND substr("Record created on", 1, 4) = '2024'
+          THEN 1 ELSE 0
+        END) > 0
+);
+
+Note: 'Record created on' we alias as string with exactly that spaced name.
+
+Now Step 8: Export MANDATORY_READING rows.
+
+First count:
+
+SELECT COUNT(*) AS cnt FROM J09A_temp WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+
+If cnt>0, prepare CSV.
+
+But we must also ensure we selected 'Meter Reading (MR) Doc. No.' column: from eablg join. However that column's name is 'Meter Reading (MR) Doc. No.'; we refer as "Meter Reading (MR) Doc. No.".
+
+Our SELECT for CSV must produce header with 16 names exactly; we can alias columns to these names explicitly. So query:
+
+SELECT
+  "Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No.",
+  HAUS,
+  ANLAGE,
+  ME_MA_ID,
+  EQUNR,
+  HOUSE_NUM1,
+  ENTSCHEIDUNG,
+  COALESCE(sales_TITLE, net_TITLE) AS TITLE,
+  COALESCE(sales_FORENAME, net_FORENAME) AS FORENAME,
+  COALESCE(sales_SURNAME, net_SURNAME) AS SURNAME,
+  COALESCE(sales_STREET, net_STREET) AS STREET,
+  COALESCE(sales_STREETNO, net_STREETNO) AS STREETNO,
+  COALESCE(sales_POST_CODE1, net_POST_CODE1) AS POST_CODE1,
+  COALESCE(sales_CITY1, net_CITY1) AS CITY1,
+  COALESCE(sales_CITY2, net_CITY2) AS CITY2,
+  COALESCE(sales_EMAIL, net_EMAIL) AS EMAIL
+FROM J09A_temp
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+
+But there is nuance: POST_CODE1 col from net/sales is integer; from decision_table there is also POST_CODE1; we may have created alias names; we refer to net_POST_CODE1 etc fine. The alias "POST_CODE1" in result is fine.
+
+We must ensure we alias all columns exactly using names; using "AS" with identical names ensures header matches; but we don't need quoting; but for uniform we can.
+
+Important: we must ensure 'Meter Reading (MR) Doc. No.' alias is exactly same; we already used.
+
+Call prepare_csv with sql_query set to that string, filename 'J09A_MANDATORY_READING'.
+
+However we also must ensure we make 8.* sequential: 8.1 & 8.2.1. It's fine.
+
+9: After generating file, call send_mail with file_path from tool; but we must check 'cnt'. We'll only call send_mail if cnt>0 and prepare_csv success. That ensures file has header plus cnt rows; at least 1.
+
+send_mail args:
+
+{
+ "file_path": <filename_from_prepare>,
+ "email_address": "mandatory.reading@provider.com",
+ "email": "Subject: J09A MANDATORY_READING export\n\nAttached is the J09A_MANDATORY_READING CSV file with mandatory reading customers."
+}
+
+But we must embed subject? Tool's 'email' param is "Email content to send"; there is no separate subject. However step 9.1.2 says set appropriate subject. Since tool doesn't support subject separately, we can place 'Subject: ...' in first line of email; that commonly works. The actual backend might parse; spec isn't precise; but we abide. Or we just mention subject in body; but to "set subject", i'd include 'Subject: ...' prefix.
+
+Now Step 10: DIRECT_MAIL.
+
+SQL as previously:
+
+UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'DIRECT_MAIL'
+WHERE ENTSCHEIDUNG != 'MANDATORY_READING'
+  AND EQUNR IN (
+    SELECT EQUNR
+    FROM eabl
+    GROUP BY EQUNR
+    HAVING
+      SUM(CASE
+            WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+             AND substr("Record created on", 1, 4) = '2023'
+            THEN 1 ELSE 0
+          END) > 0
+      AND
+      SUM(CASE
+            WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+             AND substr("Record created on", 1, 4) = '2024'
+            THEN 1 ELSE 0
+          END) > 0
+  );
+
+Now Step 11: export DIRECT_MAIL rows.
+
+Count:
+
+SELECT COUNT(*) AS cnt FROM J09A_temp WHERE ENTSCHEIDUNG = 'DIRECT_MAIL';
+
+If cnt>0: call prepare_csv with filename 'J09A_DIRECT_MAIL' and query:
+
+same SELECT except filter ENTSCHEIDUNG='DIRECT_MAIL'.
+
+After that, Step 12: call send_bulk_mail with csv_file_path from prepare_csv if cnt>0 & success.
+
+send_bulk_mail returns message; not used further.
+
+Step 13: OTHER_rows: ENTSCHEIDUNG not equal 'MANDATORY_READING' or 'DIRECT_MAIL'. Some ENTSCHEIDUNG may be null; they also come. Condition: ENTSCHEIDUNG IS NULL OR ENTSCHEIDUNG NOT IN ('MANDATORY_READING','DIRECT_MAIL'); but spec uses 'neither "MANDATORY_READING" nor "DIRECT_MAIL" (e.g."KSA","EVU" or any other value).' That implies null & any other string; so we can filter as:
+
+WHERE ENTSCHEIDUNG IS NULL OR ENTSCHEIDUNG NOT IN ('MANDATORY_READING','DIRECT_MAIL');
+
+Count; if cnt>0: call prepare_csv with query & filename 'J09A'.
+
+This CSV must have same 16 header columns & order; so same SELECT as above but filter.
+
+Step 14: send_mail for J09A.
+
+If cnt>0 and success: send_mail with meter.readings@evu.com; subject 'J09A export'; etc.
+
+Step 15: drop J09A_temp; we must ensure we call:
+
+DROP TABLE IF EXISTS J09A_temp;
+
+Ok.
+
+Need to ensure all SQL uses correct quoting & table names.
+
+Now we implement with tools sequentially. We'll call run_sqlite_query many times; we must keep track of counts and filenames via conversation-level variables.
+
+Let's start.
+Tool Calls:
+  run_sqlite_query (call_zPlAsWJ60QZ2QH7J3WKVuI13)
+ Call ID: call_zPlAsWJ60QZ2QH7J3WKVuI13
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_f8b475f9-5276-4811-b435-602e51aba105'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_XXHjyr5ePeMJm4bUm1FQZgYO)
+ Call ID: call_XXHjyr5ePeMJm4bUm1FQZgYO
+  Args:
+    sqlite_command: CREATE TABLE J09A_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09A%';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_3d452f12-8bea-4cb0-8487-e66a7873706c'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_UfiQWkzImqWKGcbcB1PAgjQC)
+ Call ID: call_UfiQWkzImqWKGcbcB1PAgjQC
+  Args:
+    sqlite_command: PRAGMA table_info('J09A_temp');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_16c7c6e8-4c02-47f7-9828-c256ae05b23b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_5w7p0dZJAjrffNhKS6SCC2UE)
+ Call ID: call_5w7p0dZJAjrffNhKS6SCC2UE
+  Args:
+    sqlite_command: SELECT 1 AS test;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":1,"data":[{"test":1}]}', 'id': 'lc_eb349cb9-7ec7-4b97-a73c-09e69db9f609'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_oELc0CMLpSKz5Ann9Dey6vx7)
+ Call ID: call_oELc0CMLpSKz5Ann9Dey6vx7
+  Args:
+    sqlite_command: ALTER TABLE J09A_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_7b0813bb-4a63-406f-918c-c631f674d170'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_yVWZ5O76TfJp1W2cWsUp9lfn)
+ Call ID: call_yVWZ5O76TfJp1W2cWsUp9lfn
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = CASE
+  WHEN HAUS IN (
+    SELECT HAUS
+    FROM J09A_temp
+    GROUP BY HAUS
+    HAVING COUNT(DISTINCT EQUNR) < 3
+  ) THEN 'KSA'
+  ELSE 'EVU'
+END;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":4900,"message":"Query executed successfully. 4900 row(s) affected."}', 'id': 'lc_b50116f8-27f8-4536-aed1-6126d0c0bac0'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_4yHPirZk6m0ItTxC8tt2OYi3)
+ Call ID: call_4yHPirZk6m0ItTxC8tt2OYi3
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE HOUSE_NUM1 = 0;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":1,"message":"Query executed successfully. 1 row(s) affected."}', 'id': 'lc_041262e9-ea71-40e0-b5c7-5c198c3559ca'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_oYofjvid1KhX9RPI5KsnC938)
+ Call ID: call_oYofjvid1KhX9RPI5KsnC938
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE HOUSE_NUM1 BETWEEN 500 AND 599;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":2,"message":"Query executed successfully. 2 row(s) affected."}', 'id': 'lc_1b664d9f-8450-4baf-b7e5-0a2072b763fd'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_V59fu33dC1iTNxdzP7yw6KMh)
+ Call ID: call_V59fu33dC1iTNxdzP7yw6KMh
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE HOUSE_NUM1 BETWEEN 900 AND 999;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":8,"message":"Query executed successfully. 8 row(s) affected."}', 'id': 'lc_446949d1-c406-4162-a0bf-5d485c3d8061'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_WRZOjrcrXXzFiMm142LC3yDm)
+ Call ID: call_WRZOjrcrXXzFiMm142LC3yDm
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'EVU'
+WHERE lower(CITY1) IN ('wiblingwerde', 'breckerfeld');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":0,"message":"Query executed successfully. 0 row(s) affected."}', 'id': 'lc_d1ae4fb2-0b09-46f6-8cb4-c79afd0cc25c'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_u7R2462Bm4BITIzP6Sb9HnN2)
+ Call ID: call_u7R2462Bm4BITIzP6Sb9HnN2
+  Args:
+    sqlite_command: CREATE TABLE J09A_temp_join_eablg AS
+SELECT j.*, g.*
+FROM J09A_temp j
+LEFT JOIN eablg g
+  ON j.ANLAGE = g.Installation;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_45a66fde-3856-464d-a95c-97b46cfc0036'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_cz5MXixjag2krsvMJIVRwHza)
+ Call ID: call_cz5MXixjag2krsvMJIVRwHza
+  Args:
+    sqlite_command: DROP TABLE J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_8c388297-f161-459e-839f-496052b5721c'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_YGr98FaOWCgg4nZ2OBbePYe0)
+ Call ID: call_YGr98FaOWCgg4nZ2OBbePYe0
+  Args:
+    sqlite_command: ALTER TABLE J09A_temp_join_eablg RENAME TO J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_baadac25-01b3-498b-9209-654d05bcedce'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_yjQCMPcs4LBWgIqpVQkL9Oom)
+ Call ID: call_yjQCMPcs4LBWgIqpVQkL9Oom
+  Args:
+    sqlite_command: CREATE TABLE J09A_temp_join_master AS
+SELECT
+  j.*,
+  n.EQUNR AS net_EQUNR,
+  n.TITLE AS net_TITLE,
+  n.FORENAME AS net_FORENAME,
+  n.SURNAME AS net_SURNAME,
+  n.STREET AS net_STREET,
+  n.STREETNO AS net_STREETNO,
+  n.POST_CODE1 AS net_POST_CODE1,
+  n.CITY1 AS net_CITY1,
+  n.CITY2 AS net_CITY2,
+  n.EMAIL AS net_EMAIL,
+  s.EQUNR AS sales_EQUNR,
+  s.TITLE AS sales_TITLE,
+  s.FORENAME AS sales_FORENAME,
+  s.SURNAME AS sales_SURNAME,
+  s.STREET AS sales_STREET,
+  s.STREETNO AS sales_STREETNO,
+  s.POST_CODE1 AS sales_POST_CODE1,
+  s.CITY1 AS sales_CITY1,
+  s.CITY2 AS sales_CITY2,
+  s.EMAIL AS sales_EMAIL
+FROM J09A_temp j
+LEFT JOIN net_master n ON j.EQUNR = n.EQUNR
+LEFT JOIN sales_master s ON j.EQUNR = s.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_b6c08df5-8528-4e93-95ba-9780fc7700ae'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_U7veOrWzkuOJQpWLIliXgJDJ)
+ Call ID: call_U7veOrWzkuOJQpWLIliXgJDJ
+  Args:
+    sqlite_command: DROP TABLE J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_a0718bf3-4e6e-4510-b0fb-827c88519d5d'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_jrVrHWsOtVfZi200B7cLlvxc)
+ Call ID: call_jrVrHWsOtVfZi200B7cLlvxc
+  Args:
+    sqlite_command: ALTER TABLE J09A_temp_join_master RENAME TO J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_8f99221e-e5e4-41e6-b277-1c63f0f4932e'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_7Yzusb5cbZN8B8Sudo7fu5w2)
+ Call ID: call_7Yzusb5cbZN8B8Sudo7fu5w2
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET
+  net_EQUNR = NULL,
+  net_TITLE = NULL,
+  net_FORENAME = NULL,
+  net_SURNAME = NULL,
+  net_STREET = NULL,
+  net_STREETNO = NULL,
+  net_POST_CODE1 = NULL,
+  net_CITY1 = NULL,
+  net_CITY2 = NULL,
+  net_EMAIL = NULL
+WHERE sales_EQUNR IS NOT NULL;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":18589,"message":"Query executed successfully. 18589 row(s) affected."}', 'id': 'lc_96c19545-bdb2-4522-8e9a-b21c342a2a73'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_qXTKwXTiZkb275u6BEAC9eA5)
+ Call ID: call_qXTKwXTiZkb275u6BEAC9eA5
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET
+  sales_EQUNR = NULL,
+  sales_TITLE = NULL,
+  sales_FORENAME = NULL,
+  sales_SURNAME = NULL,
+  sales_STREET = NULL,
+  sales_STREETNO = NULL,
+  sales_POST_CODE1 = NULL,
+  sales_CITY1 = NULL,
+  sales_CITY2 = NULL,
+  sales_EMAIL = NULL
+WHERE sales_EQUNR IS NULL AND net_EQUNR IS NOT NULL;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":2277,"message":"Query executed successfully. 2277 row(s) affected."}', 'id': 'lc_26a3149d-17fa-49b9-8911-af404345a8b4'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_YJvDZp6uk9F0Uc5CQLqLVqkt)
+ Call ID: call_YJvDZp6uk9F0Uc5CQLqLVqkt
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'MANDATORY_READING'
+WHERE EQUNR IN (
+  SELECT EQUNR
+  FROM eabl
+  GROUP BY EQUNR
+  HAVING
+    SUM(CASE
+          WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+           AND substr("Record created on", 1, 4) = '2023'
+          THEN 1 ELSE 0
+        END) > 0
+    AND
+    SUM(CASE
+          WHEN ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+           AND substr("Record created on", 1, 4) = '2024'
+          THEN 1 ELSE 0
+        END) > 0
+);
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":666,"message":"Query executed successfully. 666 row(s) affected."}', 'id': 'lc_5cbaed6f-8988-47b2-b99d-56c08aea8fd8'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_IuvDSnbgcvdTSrOxHrynChNj)
+ Call ID: call_IuvDSnbgcvdTSrOxHrynChNj
+  Args:
+    sqlite_command: SELECT COUNT(*) AS cnt FROM J09A_temp WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":1,"data":[{"cnt":666}]}', 'id': 'lc_99b82dd1-3d1f-4002-9afc-8e665b46f213'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_Z8ShwisB3eYm1YL8lPFFVcR0)
+ Call ID: call_Z8ShwisB3eYm1YL8lPFFVcR0
+  Args:
+    sql_query: SELECT
+  "Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No.",
+  HAUS,
+  ANLAGE,
+  ME_MA_ID,
+  EQUNR,
+  HOUSE_NUM1,
+  ENTSCHEIDUNG,
+  COALESCE(sales_TITLE, net_TITLE) AS TITLE,
+  COALESCE(sales_FORENAME, net_FORENAME) AS FORENAME,
+  COALESCE(sales_SURNAME, net_SURNAME) AS SURNAME,
+  COALESCE(sales_STREET, net_STREET) AS STREET,
+  COALESCE(sales_STREETNO, net_STREETNO) AS STREETNO,
+  COALESCE(sales_POST_CODE1, net_POST_CODE1) AS POST_CODE1,
+  COALESCE(sales_CITY1, net_CITY1) AS CITY1,
+  COALESCE(sales_CITY2, net_CITY2) AS CITY2,
+  COALESCE(sales_EMAIL, net_EMAIL) AS EMAIL
+FROM J09A_temp
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+    filename: J09A_MANDATORY_READING
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09A_MANDATORY_READING.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_MANDATORY_READING.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_MANDATORY_READING.csv","row_count":666,"message":"Successfully exported 666 rows to sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_MANDATORY_READING.csv"}', 'id': 'lc_01d951a2-d874-4701-a1e3-cf0713468c81'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_8tF3SmdIASCr6VumQ6L6i8Dk)
+ Call ID: call_8tF3SmdIASCr6VumQ6L6i8Dk
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_MANDATORY_READING.csv
+    email_address: mandatory.reading@provider.com
+    email: Subject: J09A MANDATORY_READING export
+
+Hello,
+
+Please find attached the J09A_MANDATORY_READING CSV file containing all customers flagged for mandatory meter reading.
+
+Best regards,
+Automated Meter Reading System
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/process_metadata.csv"}', 'id': 'lc_b72dcc53-101c-42e8-95c1-267bb242f13b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_tojV03T3LZZAg8v1ULnKL9s5)
+ Call ID: call_tojV03T3LZZAg8v1ULnKL9s5
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = 'DIRECT_MAIL'
+WHERE ENTSCHEIDUNG != 'MANDATORY_READING'
+  AND EQUNR IN (
+    SELECT EQUNR
+    FROM eabl
+    GROUP BY EQUNR
+    HAVING
+      SUM(CASE
+            WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+             AND substr("Record created on", 1, 4) = '2023'
+            THEN 1 ELSE 0
+          END) > 0
+      AND
+      SUM(CASE
+            WHEN ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+             AND substr("Record created on", 1, 4) = '2024'
+            THEN 1 ELSE 0
+          END) > 0
+  );
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":5048,"message":"Query executed successfully. 5048 row(s) affected."}', 'id': 'lc_553c4236-9e0e-433b-aa04-feef58322093'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_OFnoQ3GSc6Qgz8Rda3FpmoeC)
+ Call ID: call_OFnoQ3GSc6Qgz8Rda3FpmoeC
+  Args:
+    sqlite_command: SELECT COUNT(*) AS cnt FROM J09A_temp WHERE ENTSCHEIDUNG = 'DIRECT_MAIL';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":1,"data":[{"cnt":5048}]}', 'id': 'lc_29710a2c-ed08-4b0d-a9bd-da8d5351e79b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_3joYiSucq3Xko1SvhTaKOOZA)
+ Call ID: call_3joYiSucq3Xko1SvhTaKOOZA
+  Args:
+    sql_query: SELECT
+  "Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No.",
+  HAUS,
+  ANLAGE,
+  ME_MA_ID,
+  EQUNR,
+  HOUSE_NUM1,
+  ENTSCHEIDUNG,
+  COALESCE(sales_TITLE, net_TITLE) AS TITLE,
+  COALESCE(sales_FORENAME, net_FORENAME) AS FORENAME,
+  COALESCE(sales_SURNAME, net_SURNAME) AS SURNAME,
+  COALESCE(sales_STREET, net_STREET) AS STREET,
+  COALESCE(sales_STREETNO, net_STREETNO) AS STREETNO,
+  COALESCE(sales_POST_CODE1, net_POST_CODE1) AS POST_CODE1,
+  COALESCE(sales_CITY1, net_CITY1) AS CITY1,
+  COALESCE(sales_CITY2, net_CITY2) AS CITY2,
+  COALESCE(sales_EMAIL, net_EMAIL) AS EMAIL
+FROM J09A_temp
+WHERE ENTSCHEIDUNG = 'DIRECT_MAIL';
+    filename: J09A_DIRECT_MAIL
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09A_DIRECT_MAIL.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_DIRECT_MAIL.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_DIRECT_MAIL.csv","row_count":5048,"message":"Successfully exported 5048 rows to sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_DIRECT_MAIL.csv"}', 'id': 'lc_1f02dee3-4b81-4436-adff-b73dacd5322f'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_bulk_mail (call_tvRi0bauZ4dph5yCL5H8IbJq)
+ Call ID: call_tvRi0bauZ4dph5yCL5H8IbJq
+  Args:
+    csv_file_path: sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A_DIRECT_MAIL.csv
+================================= Tool Message =================================
+Name: send_bulk_mail
+
+[{'type': 'text', 'text': '{"result":"sent 5048 emails"}', 'id': 'lc_a0a44e2e-e5e5-45f8-a2cd-076fa2073a44'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_R29XNKhJdWjeqUdN4F9XARXD)
+ Call ID: call_R29XNKhJdWjeqUdN4F9XARXD
+  Args:
+    sqlite_command: SELECT COUNT(*) AS cnt FROM J09A_temp WHERE ENTSCHEIDUNG IS NULL OR ENTSCHEIDUNG NOT IN ('MANDATORY_READING', 'DIRECT_MAIL');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":1,"data":[{"cnt":15152}]}', 'id': 'lc_83542b30-1919-4e34-9065-62c74c1ac7c1'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_696zwzcW5ci0VPWGaI92sqpo)
+ Call ID: call_696zwzcW5ci0VPWGaI92sqpo
+  Args:
+    sql_query: SELECT
+  "Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No.",
+  HAUS,
+  ANLAGE,
+  ME_MA_ID,
+  EQUNR,
+  HOUSE_NUM1,
+  ENTSCHEIDUNG,
+  COALESCE(sales_TITLE, net_TITLE) AS TITLE,
+  COALESCE(sales_FORENAME, net_FORENAME) AS FORENAME,
+  COALESCE(sales_SURNAME, net_SURNAME) AS SURNAME,
+  COALESCE(sales_STREET, net_STREET) AS STREET,
+  COALESCE(sales_STREETNO, net_STREETNO) AS STREETNO,
+  COALESCE(sales_POST_CODE1, net_POST_CODE1) AS POST_CODE1,
+  COALESCE(sales_CITY1, net_CITY1) AS CITY1,
+  COALESCE(sales_CITY2, net_CITY2) AS CITY2,
+  COALESCE(sales_EMAIL, net_EMAIL) AS EMAIL
+FROM J09A_temp
+WHERE ENTSCHEIDUNG IS NULL OR ENTSCHEIDUNG NOT IN ('MANDATORY_READING', 'DIRECT_MAIL');
+    filename: J09A
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09A.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A.csv","row_count":15152,"message":"Successfully exported 15152 rows to sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A.csv"}', 'id': 'lc_37ebcb99-8797-439a-8694-44362a72e0a3'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_fTNtewEXUHTx7FK8tob7vlFJ)
+ Call ID: call_fTNtewEXUHTx7FK8tob7vlFJ
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/J09A.csv
+    email_address: meter.readings@evu.com
+    email: Subject: J09A export
+
+Hello,
+
+Please find attached the J09A CSV file containing all remaining customers for EVU/other processing.
+
+Best regards,
+Automated Meter Reading System
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_add_tour_J09A_seed_1824/process_metadata.csv"}', 'id': 'lc_53878f8c-d91c-481d-af00-977ffa52a87c'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_CzW37JgQC3Ripfrr1WdfDS7x)
+ Call ID: call_CzW37JgQC3Ripfrr1WdfDS7x
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_6ce7370d-2dd8-416b-9e0e-2fdc5bcc0f07'}]
+================================== Ai Message ==================================
+
+I’ve executed the full J09A process as specified. Summary of what was done:
+
+1. Built working table:
+   - Dropped any existing `J09A_temp`.
+   - Created `J09A_temp` from `decision_table` with `TOUR` like `J09A%`.
+
+2. Managed `ENTSCHEIDUNG` column:
+   - Added `ENTSCHEIDUNG` (TEXT) to `J09A_temp` and initialized it via rules.
+
+3. Applied base and overwrite rules:
+   - Per-`HAUS` rule using distinct `EQUNR`:
+     - `< 3` distinct `EQUNR` → `ENTSCHEIDUNG = 'KSA'`
+     - `≥ 3` distinct `EQUNR` → `ENTSCHEIDUNG = 'EVU'`
+   - Overwrite rules:
+     - `HOUSE_NUM1 = 0` → `EVU`
+     - `500–599` → `EVU`
+     - `900–999` → `EVU`
+     - `CITY1` equal (case‑insensitive) to “Wiblingwerde” or “Breckerfeld” → `EVU`.
+
+4. Joined with EABLG:
+   - Left joined on `ANLAGE = Installation`, duplicating rows where multiple matches existed.
+   - Kept all EABLG columns, including `"Meter Reading (MR) Doc. No."`.
+
+5. Joined with NET_MASTER and SALES_MASTER:
+   - Left joined on `EQUNR` to both tables.
+   - Added NET-derived columns: `net_EQUNR`, `net_TITLE`, `net_FORENAME`, `net_SURNAME`, `net_STREET`, `net_STREETNO`, `net_POST_CODE1`, `net_CITY1`, `net_CITY2`, `net_EMAIL`.
+   - Added SALES-derived columns: `sales_EQUNR`, `sales_TITLE`, `sales_FORENAME`, `sales_SURNAME`, `sales_STREET`, `sales_STREETNO`, `sales_POST_CODE1`, `sales_CITY1`, `sales_CITY2`, `sales_EMAIL`.
+
+6. Preferred SALES data over NET data:
+   - For rows with `sales_EQUNR` present:
+     - Set all `net_*` fields to NULL (kept `sales_*`).
+   - For rows with no SALES but `net_EQUNR` present:
+     - Set all `sales_*` fields to NULL (kept `net_*`).
+
+7. Flagged `MANDATORY_READING` using EABL:
+   - For each `EQUNR`, checked EABL for:
+     - At least one row with `ISTABLART_TXT = 'Maschinelle Schätzung - SAP'` and creation year 2023.
+     - At least one row with the same text and creation year 2024.
+   - For `EQUNR` meeting both conditions:
+     - Set `ENTSCHEIDUNG = 'MANDATORY_READING'`.
+   - Result: 666 rows flagged.
+
+8. Exported `MANDATORY_READING` rows:
+   - Created CSV `J09A_MANDATORY_READING.csv` with 666 rows at:
+     - `sessions/gpt-5.1/.../J09A_MANDATORY_READING.csv`
+   - Columns and order:
+     1) `Meter Reading (MR) Doc. No.`
+     2) `HAUS`
+     3) `ANLAGE`
+     4) `ME_MA_ID`
+     5) `EQUNR`
+     6) `HOUSE_NUM1`
+     7) `ENTSCHEIDUNG`
+     8) `TITLE`      (from `COALESCE(sales_TITLE, net_TITLE)`)
+     9) `FORENAME`   (ditto from SALES/NET)
+     10) `SURNAME`
+     11) `STREET`
+     12) `STREETNO`
+     13) `POST_CODE1`
+     14) `CITY1`
+     15) `CITY2`
+     16) `EMAIL`
+
+9. Sent MANDATORY_READING file to internal team:
+   - Emailed `J09A_MANDATORY_READING.csv` to `mandatory.reading@provider.com` with subject line in the email content: “J09A MANDATORY_READING export”.
+
+10. Flagged `DIRECT_MAIL` using EABL:
+    - For each `EQUNR` (excluding already `MANDATORY_READING`):
+      - Checked EABL for:
+        - At least one row with `ISTABLART_TXT = 'Ablesung durch Kunden - SAP'` in 2023.
+        - At least one row with same text in 2024.
+      - For `EQUNR` meeting both conditions:
+        - Set `ENTSCHEIDUNG = 'DIRECT_MAIL'`.
+    - Result: 5,048 rows flagged.
+
+11. Exported `DIRECT_MAIL` rows:
+    - Created CSV `J09A_DIRECT_MAIL.csv` with 5,048 rows at:
+      - `sessions/gpt-5.1/.../J09A_DIRECT_MAIL.csv`
+    - Same 16-column header and data mapping as in the MANDATORY_READING export.
+
+12. Uploaded DIRECT_MAIL file to bulk-mail service:
+    - Called bulk-mail service with `J09A_DIRECT_MAIL.csv`.
+    - Service reported: “sent 5048 emails”.
+
+13. Exported remaining rows (EVU/other):
+    - Selected rows where `ENTSCHEIDUNG` is neither `MANDATORY_READING` nor `DIRECT_MAIL` (including NULL and other values like `KSA`, `EVU`).
+    - Count: 15,152 rows.
+    - Created `J09A.csv` at:
+      - `sessions/gpt-5.1/.../J09A.csv`
+    - Same 16-column structure as above.
+
+14. Sent J09A file to EVU team:
+    - Emailed `J09A.csv` to `meter.readings@evu.com` with subject line in the email content: “J09A export”.
+
+15. Cleanup:
+    - Dropped working table `J09A_temp`.
+
+If you’d like, I can show you the exact SQL used for any step or a sample of the exported data.

@@ -1,0 +1,349 @@
+================================ Human Message =================================
+
+Execute the process with process_rule_id 'J09D'.
+================================== Ai Message ==================================
+Tool Calls:
+  retrieve_process (call_JPCE9PAw9vvIWXRIBtJF9aQI)
+ Call ID: call_JPCE9PAw9vvIWXRIBtJF9aQI
+  Args:
+    process_rule_id: J09D
+================================= Tool Message =================================
+Name: retrieve_process
+
+[{'type': 'text', 'text': '{"success":true,"process_rule_id":"J09D","process_rule":"1. Create a temporary working table:\\n   1.1. From table `decision_table`, select all rows where `TOURS` starts with `\\"J09D\\"` (string prefix match).\\n   1.2. Store these rows in a new table named `J09D_temp`.\\n   1.3. Preserve all columns from `decision_table` in `J09D_temp`.\\n\\n2. Add decision column:\\n   2.1. Add a new column `ENTSCHEIDUNG` to `J09D_temp`.\\n   2.2. Use a text/string data type for `ENTSCHEIDUNG`.\\n   2.3. Initialize `ENTSCHEIDUNG` with NULL (empty) for all rows.\\n\\n3. Set `ENTSCHEIDUNG` based on number of meters per house:\\n   3.1. For each distinct value of `HAUS` in `J09D_temp`, compute the number of records (or distinct `EQUNR`, depending on implementation) associated with that `HAUS`.\\n   3.2. For each `HAUS` value:\\n       IF the count of `EQUNR` for this `HAUS` is less than 3 THEN\\n           3.2.1. Set `ENTSCHEIDUNG = \'KSA\'` for all rows in `J09D_temp` with this `HAUS`.\\n       ELSE\\n           3.2.2. Set `ENTSCHEIDUNG = \'EVU\'` for all rows in `J09D_temp` with this `HAUS`.\\n\\n4. Join `J09D_temp` with `EABLG`:\\n   4.1. Perform a LEFT JOIN from `J09D_temp` to `EABLG` using the column `INSTALLATION` as join key (assume `INSTALLATION` exists in both tables; if different names exist, map the installation/ANLAGE field appropriately).\\n   4.2. Name the resulting joined table `J09D_EABLG`.\\n   4.3. Keep all rows from `J09D_temp`; add matching columns from `EABLG` where available.\\n\\n5. Join with `NET_MASTER` on `EQUNR`:\\n   5.1. Perform a LEFT JOIN from `J09D_EABLG` to `NET_MASTER` using `EQUNR` as join key.\\n   5.2. Name the resulting joined table `J09D_NET`.\\n   5.3. Keep all rows from `J09D_EABLG`; add matching columns from `NET_MASTER` where available.\\n\\n6. Join with `SALES_MASTER` on `EQUNR`:\\n   6.1. Perform a LEFT JOIN from `J09D_NET` to `SALES_MASTER` using `EQUNR` as join key.\\n   6.2. Name the resulting joined table `J09D_NET_SALES`.\\n   6.3. Keep all rows from `J09D_NET`; add matching columns from `SALES_MASTER` where available.\\n\\n7. Compare sales data vs net data and choose which to use:\\n   7.1. For each row in `J09D_NET_SALES`, determine whether sales data exists:\\n       7.1.1. Treat “sales data exists” as: there is a non-NULL match from `SALES_MASTER` for this `EQUNR` (e.g., `SALES_MASTER.EQUNR` is not NULL, or at least one of the key customer fields from `SALES_MASTER` is not NULL).\\n   7.2. For each row in `J09D_NET_SALES`:\\n       IF sales data exists for this `EQUNR` THEN\\n           7.2.1. For the following columns, take values from `SALES_MASTER` and use them as the final values for this row:\\n                   - `ME_MA_ID`\\n                   - `HOUSE_NUM1`\\n                   - `TITLE`\\n                   - `FORENAME`\\n                   - `SURNAME`\\n                   - `STREET`\\n                   - `STREETNO`\\n                   - `POST_CODE1`\\n                   - `CITY1`\\n                   - `CITY2`\\n                   - `EMAIL`\\n           7.2.2. For these same fields from `NET_MASTER`, treat them as “empty net data” (e.g., set them to NULL or ignore them in the final projection).\\n       ELSE\\n           7.2.3. For the above-listed columns, take values from `NET_MASTER` and use them as the final values for this row.\\n           7.2.4. For the corresponding fields from `SALES_MASTER`, treat them as “empty sales data” (e.g., set them to NULL or ignore them in the final projection).\\n\\n8. Build the final dataset for export:\\n   8.1. From `J09D_NET_SALES`, construct a final result set (logical table) that includes exactly the following columns:\\n       - `Meter Reading (MR) Doc. No.`\\n       - `HAUS`\\n       - `ANLAGE`\\n       - `ME_MA_ID`\\n       - `EQUNR`\\n       - `HOUSE_NUM1`\\n       - `ENTSCHEIDUNG`\\n       - `TITLE`\\n       - `FORENAME`\\n       - `SURNAME`\\n       - `STREET`\\n       - `STREETNO`\\n       - `POST_CODE1`\\n       - `CITY1`\\n       - `CITY2`\\n       - `EMAIL`\\n   8.2. Use the following column sources:\\n       8.2.1. `Meter Reading (MR) Doc. No.` from the original meter-reading data (as present in `J09D_temp` / `decision_table` or corresponding column after joins).\\n       8.2.2. `HAUS`, `ANLAGE`, `EQUNR`, and `ENTSCHEIDUNG` from `J09D_temp` (or their unchanged equivalents in the joined tables).\\n       8.2.3. `ME_MA_ID`, `HOUSE_NUM1`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL` from the “chosen” data per step 7 (i.e., from `SALES_MASTER` when sales data exists, otherwise from `NET_MASTER`).\\n\\n9. Export the final dataset:\\n   9.1. Export the final result set to a CSV file.\\n   9.2. Name the file `J09D` (e.g., `J09D.csv`).\\n   9.3. Include a header row with the column names listed in step 8.1.\\n   9.4. Use a standard delimiter (e.g., comma) and UTF-8 encoding.\\n\\n10. Send the exported file to the EVU team:\\n    10.1. Create an email addressed to `meter.readings@evu.com`.\\n    10.2. Attach the CSV file `J09D` created in step 9.\\n    10.3. Optionally set a subject and body text appropriate to the business process.\\n    10.4. Send the email.\\n\\n11. Cleanup:\\n    11.1. Delete the temporary table `J09D_temp`.\\n    11.2. If any additional intermediate tables were physically created (e.g., `J09D_EABLG`, `J09D_NET`, `J09D_NET_SALES`), drop them as well, unless they are intentionally retained for other processes."}', 'id': 'lc_3d0b0d83-94f9-4b63-b4db-d0358734366e'}]
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_KcAV3tE9Cn0uGXZeHhNCvvuO)
+ Call ID: call_KcAV3tE9Cn0uGXZeHhNCvvuO
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":true,"schema":"# Table: net_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: sales_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: decision_table\\n## column_name (type) description\\nHAUS (TEXT) House identifier\\nANLAGE (TEXT) Installation/facility identifier\\nABLEINH (TEXT) Reading unit identifier\\nTOUR (TEXT) Tour/route identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nHOUSE_NUM1 (INTEGER) House/building number\\nPOST_CODE1 (INTEGER) Postal code\\nEQUNR (TEXT) Equipment Number\\n\\n# Table: eabl\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nEQUNR (TEXT) Equipment Number\\nGeplante Ableseart (INTEGER) Planned reading type\\nMR type (TEXT) Meter reading type code\\nMR TYPE TEXT (TEXT) Meter Reading type description\\nMR category (TEXT) Meter reading category\\nISTABLART_TXT (TEXT) Actual reading type description (SAP)\\nLOGIKZW (TEXT) Logic indicator\\nKENNZIFF (TEXT) Identification number\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\n\\n# Table: eablg\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nInstallation (TEXT) Installation identifier\\nMeter Reading reason (INTEGER) Meter reading reason code\\nMR Reason - Text (TEXT) Meter reading reason description\\nScheduled MR Date (TEXT) Scheduled meter reading date\\nMeter Reading unit (TEXT) Meter reading unit\\nMeter Reading (MR) Doc. No..1 (INTEGER) Secondary/duplicate Meter Reading Document Number\\n\\n# Table: eanl\\n## column_name (type) description\\nInstallation (TEXT) Installation identifier\\nInstallation type (TEXT) Type of installation\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\nSPARTE_TEXT (TEXT) Division/sector description\\nAKLASSE (TEXT) Customer class code\\nAKLASSE_TEXT (TEXT) Customer class description\\nTARIFTYP (TEXT) Tariff type code\\nTARIFTYP_TEXT (TEXT) Tariff type description\\nBRANCHE (TEXT) Industry/sector code\\nBRANCHE_TEXT (TEXT) Industry/sector description\\nABLEINH (TEXT) Reading unit identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nHAUS (TEXT) House identifier\\n\\n# Table: process_rules\\n## column_name (type) description\\nprocess_rule_id (TEXT) PRIMARY KEY - Process rule identifier\\nprocess_rule (TEXT) NOT NULL - Process rule text/description"}', 'id': 'lc_3670ab0d-1985-4b2d-ab09-934bc1f988ad'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_kQi3JxvEP2i0JvJBoYCJgTqi)
+ Call ID: call_kQi3JxvEP2i0JvJBoYCJgTqi
+  Args:
+    sqlite_command: CREATE TABLE J09D_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09D%';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_87e8d37f-10dc-4a55-9480-e0c4c65ea4ae'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_0zPGaDBHrnH5yzMjKmC4SQ7t)
+ Call ID: call_0zPGaDBHrnH5yzMjKmC4SQ7t
+  Args:
+    sqlite_command: ALTER TABLE J09D_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_a131a774-a626-457f-8fb0-16f229970aba'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_LEGN1SM5gZxVXSDjQNjaeMEt)
+ Call ID: call_LEGN1SM5gZxVXSDjQNjaeMEt
+  Args:
+    sqlite_command: UPDATE J09D_temp
+SET ENTSCHEIDUNG = CASE
+    WHEN (
+        SELECT COUNT(DISTINCT EQUNR)
+        FROM J09D_temp jt2
+        WHERE jt2.HAUS = J09D_temp.HAUS
+    ) < 3 THEN 'KSA'
+    ELSE 'EVU'
+END;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":6113,"message":"Query executed successfully. 6113 row(s) affected."}', 'id': 'lc_fe94e31e-e6da-4f99-ae38-0e64fe4597b5'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_Dxpmbqz7FVQFDNMDzMiF4jc0)
+ Call ID: call_Dxpmbqz7FVQFDNMDzMiF4jc0
+  Args:
+    sqlite_command: CREATE TABLE J09D_EABLG AS
+SELECT t.*, e."Meter Reading (MR) Doc. No.", e.Installation, e."Meter Reading reason", e."MR Reason - Text", e."Scheduled MR Date", e."Meter Reading unit", e."Meter Reading (MR) Doc. No..1"
+FROM J09D_temp t
+LEFT JOIN eablg e
+  ON t.ANLAGE = e.Installation;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_64024b74-b3e7-4c96-80dd-f1f608021894'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_wyToejhLD8ZWNaPaa2F5B9xH)
+ Call ID: call_wyToejhLD8ZWNaPaa2F5B9xH
+  Args:
+    sqlite_command: CREATE TABLE J09D_NET AS
+SELECT je.*, n.TITLE AS NET_TITLE, n.FORENAME AS NET_FORENAME, n.SURNAME AS NET_SURNAME,
+       n.STREET AS NET_STREET, n.STREETNO AS NET_STREETNO, n.CITY1 AS NET_CITY1,
+       n.CITY2 AS NET_CITY2, n.POST_CODE1 AS NET_POST_CODE1, n.EMAIL AS NET_EMAIL
+FROM J09D_EABLG je
+LEFT JOIN net_master n
+  ON je.EQUNR = n.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_8ff05473-b87f-4151-bce6-e0b3bc1a1292'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_dMPunDC0IxEkH6n5H8QQr0Jj)
+ Call ID: call_dMPunDC0IxEkH6n5H8QQr0Jj
+  Args:
+    sqlite_command: CREATE TABLE J09D_NET_SALES AS
+SELECT jn.*, s.TITLE AS SALES_TITLE, s.FORENAME AS SALES_FORENAME, s.SURNAME AS SALES_SURNAME,
+       s.STREET AS SALES_STREET, s.STREETNO AS SALES_STREETNO, s.CITY1 AS SALES_CITY1,
+       s.CITY2 AS SALES_CITY2, s.POST_CODE1 AS SALES_POST_CODE1, s.EMAIL AS SALES_EMAIL
+FROM J09D_NET jn
+LEFT JOIN sales_master s
+  ON jn.EQUNR = s.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_b0b47c26-20d9-4a9c-8ab8-7381d00db9d8'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_yeEgpXWoDETpYpxjzFnAf4Fl)
+ Call ID: call_yeEgpXWoDETpYpxjzFnAf4Fl
+  Args:
+    sqlite_command: CREATE TABLE J09D_final AS
+SELECT
+  je."Meter Reading (MR) Doc. No.",
+  je.HAUS,
+  je.ANLAGE,
+  COALESCE(s.EQUNR, n.EQUNR, je.EQUNR) AS EQUNR,
+  je.ME_MA_ID,
+  je.HOUSE_NUM1,
+  je.ENTSCHEIDUNG,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE ELSE n.TITLE END AS TITLE,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME ELSE n.SURNAME END AS SURNAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET ELSE n.STREET END AS STREET,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1 ELSE n.CITY1 END AS CITY1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2 ELSE n.CITY2 END AS CITY2,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL ELSE n.EMAIL END AS EMAIL
+FROM J09D_NET_SALES je
+LEFT JOIN net_master n ON je.EQUNR = n.EQUNR
+LEFT JOIN sales_master s ON je.EQUNR = s.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_c4daa8e8-e2c3-4c2b-8b96-d80c1fe6ed3f'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_sLlb6s1VInklSzZmXOKCDLW5)
+ Call ID: call_sLlb6s1VInklSzZmXOKCDLW5
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL FROM J09D_final;
+    filename: J09D
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09D.csv","filepath":"sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/J09D.csv","csv_path":"sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/J09D.csv","row_count":27633,"message":"Successfully exported 27633 rows to sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/J09D.csv"}', 'id': 'lc_6cacce8b-afa0-41d6-afa2-72143aeb1e20'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_AeahxcP7WIdLhvctAvsXK1Zk)
+ Call ID: call_AeahxcP7WIdLhvctAvsXK1Zk
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/J09D.csv
+    email: Hello EVU Team,
+
+Please find attached the J09D meter reading decision file.
+
+Best regards,
+Meter Reading Automation System
+    email_address: meter.readings@evu.com
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/process_metadata.csv"}', 'id': 'lc_82d64f90-eaa2-4c2e-8ab8-be07c7eed871'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_4wmaCQzC47e5DZ0TYCQIlHVF)
+ Call ID: call_4wmaCQzC47e5DZ0TYCQIlHVF
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_temp;
+  run_sqlite_query (call_xNrhxXFeoSsrjnPjBLP65zyn)
+ Call ID: call_xNrhxXFeoSsrjnPjBLP65zyn
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_EABLG;
+  run_sqlite_query (call_Qtax0DlJbpTQVVsKAr6MRYSf)
+ Call ID: call_Qtax0DlJbpTQVVsKAr6MRYSf
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_NET;
+  run_sqlite_query (call_EMbQDm6N4yJoLP2sEVUYIdcx)
+ Call ID: call_EMbQDm6N4yJoLP2sEVUYIdcx
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_NET_SALES;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_056b0f6e-6610-44a2-8974-fcb0651438a6'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_ff21396e-a304-48f5-99b7-f5b4ea9d6a2f'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_8cb1f8ce-445b-4ca4-a9cd-642a4767b1c1'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_8a101938-fefa-4507-a4ed-8ee98cf9b978'}]
+================================== Ai Message ==================================
+
+The process `J09D` has been fully executed according to its rule definition. Here is what was done:
+
+1. **Temporary working data**
+   - Created `J09D_temp` from `decision_table` with all rows where `TOUR` starts with `J09D`:
+     ```sql
+     CREATE TABLE J09D_temp AS
+     SELECT *
+     FROM decision_table
+     WHERE TOUR LIKE 'J09D%';
+     ```
+   - Added `ENTSCHEIDUNG` (TEXT) to `J09D_temp` and initialized it to NULL (SQLite default on add-column).
+
+2. **Per-house decision (`ENTSCHEIDUNG`)**
+   - For each `HAUS`, counted distinct meters (`EQUNR`) and set:
+     - `ENTSCHEIDUNG = 'KSA'` if count `< 3`
+     - `ENTSCHEIDUNG = 'EVU'` otherwise
+   - Implemented via:
+     ```sql
+     UPDATE J09D_temp
+     SET ENTSCHEIDUNG = CASE
+         WHEN (
+             SELECT COUNT(DISTINCT EQUNR)
+             FROM J09D_temp jt2
+             WHERE jt2.HAUS = J09D_temp.HAUS
+         ) < 3 THEN 'KSA'
+         ELSE 'EVU'
+     END;
+     ```
+
+3. **Join with `EABLG`**
+   - Joined on installation (`ANLAGE` ↔ `Installation`) and created `J09D_EABLG`:
+     ```sql
+     CREATE TABLE J09D_EABLG AS
+     SELECT t.*, e."Meter Reading (MR) Doc. No.", e.Installation,
+            e."Meter Reading reason", e."MR Reason - Text",
+            e."Scheduled MR Date", e."Meter Reading unit",
+            e."Meter Reading (MR) Doc. No..1"
+     FROM J09D_temp t
+     LEFT JOIN eablg e
+       ON t.ANLAGE = e.Installation;
+     ```
+
+4. **Join with `NET_MASTER`**
+   - Left-joined on `EQUNR` and created `J09D_NET`:
+     ```sql
+     CREATE TABLE J09D_NET AS
+     SELECT je.*,
+            n.TITLE   AS NET_TITLE,
+            n.FORENAME AS NET_FORENAME,
+            n.SURNAME AS NET_SURNAME,
+            n.STREET  AS NET_STREET,
+            n.STREETNO AS NET_STREETNO,
+            n.CITY1   AS NET_CITY1,
+            n.CITY2   AS NET_CITY2,
+            n.POST_CODE1 AS NET_POST_CODE1,
+            n.EMAIL   AS NET_EMAIL
+     FROM J09D_EABLG je
+     LEFT JOIN net_master n
+       ON je.EQUNR = n.EQUNR;
+     ```
+
+5. **Join with `SALES_MASTER`**
+   - Left-joined on `EQUNR` and created `J09D_NET_SALES`:
+     ```sql
+     CREATE TABLE J09D_NET_SALES AS
+     SELECT jn.*,
+            s.TITLE   AS SALES_TITLE,
+            s.FORENAME AS SALES_FORENAME,
+            s.SURNAME AS SALES_SURNAME,
+            s.STREET  AS SALES_STREET,
+            s.STREETNO AS SALES_STREETNO,
+            s.CITY1   AS SALES_CITY1,
+            s.CITY2   AS SALES_CITY2,
+            s.POST_CODE1 AS SALES_POST_CODE1,
+            s.EMAIL   AS SALES_EMAIL
+     FROM J09D_NET jn
+     LEFT JOIN sales_master s
+       ON jn.EQUNR = s.EQUNR;
+     ```
+
+6. **Sales vs. net data selection (logical step) and final dataset**
+   - Implemented the “choose sales if available, else net” logic into a final table `J09D_final`:
+     ```sql
+     CREATE TABLE J09D_final AS
+     SELECT
+       je."Meter Reading (MR) Doc. No.",
+       je.HAUS,
+       je.ANLAGE,
+       COALESCE(s.EQUNR, n.EQUNR, je.EQUNR) AS EQUNR,
+       je.ME_MA_ID,
+       je.HOUSE_NUM1,
+       je.ENTSCHEIDUNG,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE    ELSE n.TITLE    END AS TITLE,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME  ELSE n.SURNAME  END AS SURNAME,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET   ELSE n.STREET   END AS STREET,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1    ELSE n.CITY1    END AS CITY1,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2    ELSE n.CITY2    END AS CITY2,
+       CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL    ELSE n.EMAIL    END AS EMAIL
+     FROM J09D_NET_SALES je
+     LEFT JOIN net_master   n ON je.EQUNR = n.EQUNR
+     LEFT JOIN sales_master s ON je.EQUNR = s.EQUNR;
+     ```
+
+   - This yields exactly the required columns for export (step 8.1), with:
+     - Meter doc from `EABLG`
+     - `HAUS`, `ANLAGE`, `EQUNR`, `ENTSCHEIDUNG`, `ME_MA_ID`, `HOUSE_NUM1` from the meter-reading/decision data
+     - Name/address/contact fields taken from `SALES_MASTER` when a sales record exists, otherwise from `NET_MASTER`.
+
+7. **CSV export**
+   - Exported the final result set to `J09D.csv`:
+     ```sql
+     SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR,
+            HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME,
+            STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+     FROM J09D_final;
+     ```
+   - File information:
+     - Name: `J09D.csv`
+     - Rows: 27,633
+     - Path:  
+       `sessions/gpt-5.1/processadaptation_base_rule_processadaptationmethod_add_tour_J09D_seed_4012/J09D.csv`
+
+8. **Email to EVU**
+   - Sent an email to `meter.readings@evu.com` with `J09D.csv` attached.
+   - Body:
+     ```
+     Hello EVU Team,
+
+     Please find attached the J09D meter reading decision file.
+
+     Best regards,
+     Meter Reading Automation System
+     ```
+
+9. **Cleanup**
+   - Dropped the temporary/intermediate tables:
+     - `J09D_temp`
+     - `J09D_EABLG`
+     - `J09D_NET`
+     - `J09D_NET_SALES`
+   - The final result table `J09D_final` is retained (it holds the exported dataset).
+
+If you want, I can also generate a preview (e.g., first 10 rows) of the final dataset.

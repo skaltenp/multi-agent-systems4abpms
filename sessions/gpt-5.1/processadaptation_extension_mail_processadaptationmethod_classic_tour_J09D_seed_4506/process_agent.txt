@@ -1,0 +1,707 @@
+================================ Human Message =================================
+
+I need you to process the meter readings for tour J09D. Take all entries from the decision_table where the TOUR starts with "J09D" and put them into a temporary table called J09D_temp. Then add a new column called ENTSCHEIDUNG to that table.
+
+For classifying each house: count how many equipment numbers (EQUNR) belong to each house (HAUS). If a house has fewer than 3 equipment numbers, set its ENTSCHEIDUNG to "KSA". Otherwise, set it to "EVU". There are four additional overrides that always result in "EVU": houses where HOUSE_NUM1 is 0, houses where HOUSE_NUM1 is between 500 and 599, houses where HOUSE_NUM1 is between 900 and 999, and houses located in the areas of Wiblingwerde or Breckerfeld.
+
+Next, enrich the data by joining it with the EABLG table using the INSTALLATION field, and also pull in customer contact details from both the net_master and sales_master tables using the EQUNR field. When both net and sales data exist for a customer, prefer the sales data and leave the net data fields empty. If only net data exists, keep that.
+
+There are two more classifications to handle. First, check the EABL table for equipment numbers that had "Maschinelle Schätzung - SAP" as ISTABLART_TXT in both 2023 and 2024 (based on Record created on). For those, set ENTSCHEIDUNG to "MANDATORY_READING". Export them as a CSV file named "J09D_MANDATORY_READING" with the columns listed below and send it to the internal team at mandatory.reading@provider.com.
+
+Second, check the EABL table for equipment numbers that had "Ablesung durch Kunden - SAP" as ISTABLART_TXT in both 2023 and 2024. For those, set ENTSCHEIDUNG to "DIRECT_MAIL". Export them as a CSV file named "J09D_DIRECT_MAIL" with the columns listed below and upload that file to the send_bulk_mail service so emails go out to all those customers directly.
+
+Finally, export all remaining entries (excluding MANDATORY_READING and DIRECT_MAIL) as a CSV file named "J09D" with the same columns. Send that to the EVU team at meter.readings@evu.com. After that, delete the temporary table.
+
+The columns for all exports are: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.
+
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_6bBQbyxFjhzjp8FIDqhJir1r)
+ Call ID: call_6bBQbyxFjhzjp8FIDqhJir1r
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":true,"schema":"# Table: net_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: sales_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: decision_table\\n## column_name (type) description\\nHAUS (TEXT) House identifier\\nANLAGE (TEXT) Installation/facility identifier\\nABLEINH (TEXT) Reading unit identifier\\nTOUR (TEXT) Tour/route identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nHOUSE_NUM1 (INTEGER) House/building number\\nPOST_CODE1 (INTEGER) Postal code\\nEQUNR (TEXT) Equipment Number\\n\\n# Table: eabl\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nEQUNR (TEXT) Equipment Number\\nGeplante Ableseart (INTEGER) Planned reading type\\nMR type (TEXT) Meter reading type code\\nMR TYPE TEXT (TEXT) Meter Reading type description\\nMR category (TEXT) Meter reading category\\nISTABLART_TXT (TEXT) Actual reading type description (SAP)\\nLOGIKZW (TEXT) Logic indicator\\nKENNZIFF (TEXT) Identification number\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\n\\n# Table: eablg\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nInstallation (TEXT) Installation identifier\\nMeter Reading reason (INTEGER) Meter reading reason code\\nMR Reason - Text (TEXT) Meter reading reason description\\nScheduled MR Date (TEXT) Scheduled meter reading date\\nMeter Reading unit (TEXT) Meter reading unit\\nMeter Reading (MR) Doc. No..1 (INTEGER) Secondary/duplicate Meter Reading Document Number\\n\\n# Table: eanl\\n## column_name (type) description\\nInstallation (TEXT) Installation identifier\\nInstallation type (TEXT) Type of installation\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\nSPARTE_TEXT (TEXT) Division/sector description\\nAKLASSE (TEXT) Customer class code\\nAKLASSE_TEXT (TEXT) Customer class description\\nTARIFTYP (TEXT) Tariff type code\\nTARIFTYP_TEXT (TEXT) Tariff type description\\nBRANCHE (TEXT) Industry/sector code\\nBRANCHE_TEXT (TEXT) Industry/sector description\\nABLEINH (TEXT) Reading unit identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nHAUS (TEXT) House identifier\\n\\n# Table: process_rules\\n## column_name (type) description\\nprocess_rule_id (TEXT) PRIMARY KEY - Process rule identifier\\nprocess_rule (TEXT) NOT NULL - Process rule text/description"}', 'id': 'lc_783d03ce-3236-4356-81ed-0fa8bc166771'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_EiOeTXuMWbj7MZlLRMtb9jJc)
+ Call ID: call_EiOeTXuMWbj7MZlLRMtb9jJc
+  Args:
+    sqlite_command: CREATE TEMP TABLE J09D_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09D%';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_a4fc6a33-b24a-4e78-b1c5-55222dcd7049'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_rqqGHF5pshH6EX0UHgDtnal4)
+ Call ID: call_rqqGHF5pshH6EX0UHgDtnal4
+  Args:
+    sqlite_command: ALTER TABLE J09D_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such table: J09D_temp","message":"SQL execution failed"}', 'id': 'lc_025fb3ed-0db1-4546-b623-8dc54652a6db'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_KztwMHPgHVblfyrqN66m7I4P)
+ Call ID: call_KztwMHPgHVblfyrqN66m7I4P
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_ca3a77d3-5d71-47d0-b144-59f8689066f1'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_mZqMDR3Ny0QifqAxSD1AEIGc)
+ Call ID: call_mZqMDR3Ny0QifqAxSD1AEIGc
+  Args:
+    sqlite_command: CREATE TABLE J09D_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09D%';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_bf8a2eae-9d61-4d67-8baa-69249a8d5a09'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_yubHqMbubhlzizC5rGkQgNmT)
+ Call ID: call_yubHqMbubhlzizC5rGkQgNmT
+  Args:
+    sqlite_command: PRAGMA table_info('J09D_temp');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_7c96e9cd-a994-4e0f-b12d-ae8330a9751a'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_ztHphYlg0oU6kD0T34RjeIAd)
+ Call ID: call_ztHphYlg0oU6kD0T34RjeIAd
+  Args:
+    sqlite_command: ALTER TABLE J09D_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_f8442b43-a8ad-4db5-884e-c50764028a10'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_3XfK9bkU1kU6wsTVdDrxuvLq)
+ Call ID: call_3XfK9bkU1kU6wsTVdDrxuvLq
+  Args:
+    sqlite_command: WITH eq_counts AS (
+  SELECT HAUS, COUNT(DISTINCT EQUNR) AS eq_count
+  FROM J09D_temp
+  GROUP BY HAUS
+)
+UPDATE J09D_temp
+SET ENTSCHEIDUNG = CASE
+  WHEN HOUSE_NUM1 = 0 THEN 'EVU'
+  WHEN HOUSE_NUM1 BETWEEN 500 AND 599 THEN 'EVU'
+  WHEN HOUSE_NUM1 BETWEEN 900 AND 999 THEN 'EVU'
+  WHEN CITY1 IN ('Wiblingwerde', 'Breckerfeld') OR CITY2 IN ('Wiblingwerde', 'Breckerfeld') THEN 'EVU'
+  WHEN eq_counts.eq_count < 3 THEN 'KSA'
+  ELSE 'EVU'
+END
+FROM eq_counts
+WHERE J09D_temp.HAUS = eq_counts.HAUS;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_6539d059-aef6-4a98-82bf-dd0394f89193'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_7uIS7FdW2WQEg2mF5osXruQC)
+ Call ID: call_7uIS7FdW2WQEg2mF5osXruQC
+  Args:
+    sqlite_command: CREATE TEMP TABLE J09D_enriched AS
+SELECT 
+  j.*,
+  eablg."Meter Reading (MR) Doc. No.",
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE ELSE n.TITLE END AS TITLE,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME ELSE n.SURNAME END AS SURNAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET ELSE n.STREET END AS STREET,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1 ELSE n.CITY1 END AS CITY1_contact,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2 ELSE n.CITY2 END AS CITY2_contact,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL ELSE n.EMAIL END AS EMAIL
+FROM J09D_temp j
+LEFT JOIN eablg ON eablg.Installation = j.ANLAGE
+LEFT JOIN net_master n ON n.EQUNR = j.EQUNR
+LEFT JOIN sales_master s ON s.EQUNR = j.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_ba1a7330-487b-4871-b766-9ba0619587af'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_zAEyWbLtbDonC7ml8PUW47Sr)
+ Call ID: call_zAEyWbLtbDonC7ml8PUW47Sr
+  Args:
+    sqlite_command: CREATE TEMP TABLE J09D_flags AS
+WITH mandatory_eq AS (
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2023%'
+    AND ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+  INTERSECT
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2024%'
+    AND ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+),
+mail_eq AS (
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2023%'
+    AND ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+  INTERSECT
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2024%'
+    AND ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+)
+SELECT 
+  e."Meter Reading (MR) Doc. No.",
+  j.HAUS,
+  j.ANLAGE,
+  j.ME_MA_ID,
+  j.EQUNR,
+  j.HOUSE_NUM1,
+  j.ENTSCHEIDUNG,
+  j.TITLE,
+  j.FORENAME,
+  j.SURNAME,
+  j.STREET,
+  j.STREETNO,
+  j.POST_CODE1,
+  j.CITY1 AS CITY1,
+  j.CITY2 AS CITY2,
+  j.EMAIL,
+  CASE 
+    WHEN j.EQUNR IN (SELECT EQUNR FROM mandatory_eq) THEN 'MANDATORY_READING'
+    WHEN j.EQUNR IN (SELECT EQUNR FROM mail_eq) THEN 'DIRECT_MAIL'
+    ELSE j.ENTSCHEIDUNG
+  END AS final_entscheidung
+FROM J09D_enriched j
+LEFT JOIN eablg e ON e.Installation = j.ANLAGE;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such table: J09D_enriched","message":"SQL execution failed"}', 'id': 'lc_420e41d0-4ad9-4574-ac18-403ad8898cc6'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_FUuH7Yl5nkBxtEBmN9dBQy6i)
+ Call ID: call_FUuH7Yl5nkBxtEBmN9dBQy6i
+  Args:
+    sqlite_command: UPDATE J09D_temp
+SET ENTSCHEIDUNG = 'MANDATORY_READING'
+WHERE EQUNR IN (
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2023%'
+    AND ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+  INTERSECT
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2024%'
+    AND ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+);
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":251,"message":"Query executed successfully. 251 row(s) affected."}', 'id': 'lc_f2956c42-6b6e-4d91-9d19-861d3a8ba550'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_7np2ivcwhTdnyILb1zm0A95B)
+ Call ID: call_7np2ivcwhTdnyILb1zm0A95B
+  Args:
+    sqlite_command: UPDATE J09D_temp
+SET ENTSCHEIDUNG = 'DIRECT_MAIL'
+WHERE EQUNR IN (
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2023%'
+    AND ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+  INTERSECT
+  SELECT EQUNR
+  FROM eabl
+  WHERE "Record created on" LIKE '2024%'
+    AND ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+)
+AND ENTSCHEIDUNG <> 'MANDATORY_READING';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":1425,"message":"Query executed successfully. 1425 row(s) affected."}', 'id': 'lc_902731ec-3427-4418-b481-13863625037b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_dZgyedlQyALpbl8sTdiZ0tWs)
+ Call ID: call_dZgyedlQyALpbl8sTdiZ0tWs
+  Args:
+    sqlite_command: CREATE TEMP TABLE J09D_enriched AS
+SELECT 
+  j."Meter Reading (MR) Doc. No.",
+  j.HAUS,
+  j.ANLAGE,
+  j.ME_MA_ID,
+  j.EQUNR,
+  j.HOUSE_NUM1,
+  j.ENTSCHEIDUNG,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE ELSE n.TITLE END AS TITLE,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME ELSE n.SURNAME END AS SURNAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET ELSE n.STREET END AS STREET,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1 ELSE n.CITY1 END AS CITY1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2 ELSE n.CITY2 END AS CITY2,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL ELSE n.EMAIL END AS EMAIL
+FROM J09D_temp j
+LEFT JOIN eablg eablg ON eablg.Installation = j.ANLAGE
+LEFT JOIN net_master n ON n.EQUNR = j.EQUNR
+LEFT JOIN sales_master s ON s.EQUNR = j.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such column: j.Meter Reading (MR) Doc. No.","message":"SQL execution failed"}', 'id': 'lc_2f9886c1-6f05-48f5-926d-1e7e3205a146'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_9YXzXp0UrgkWtq9FxqrSyJwr)
+ Call ID: call_9YXzXp0UrgkWtq9FxqrSyJwr
+  Args:
+    sqlite_command: PRAGMA table_info('J09D_temp');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_7ea5018c-488d-4955-b2bd-0c4bd047394d'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_VPDl6y6fAm3hSfUPD5100sG5)
+ Call ID: call_VPDl6y6fAm3hSfUPD5100sG5
+  Args:
+    sqlite_command: PRAGMA table_info('decision_table');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_20360ae9-2ec4-4727-95cd-e42d33e57432'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_QsUAEKl8I4KUxFuJlztmyeRn)
+ Call ID: call_QsUAEKl8I4KUxFuJlztmyeRn
+  Args:
+    sqlite_command: CREATE TEMP TABLE J09D_enriched AS
+SELECT 
+  eablg."Meter Reading (MR) Doc. No.",
+  j.HAUS,
+  j.ANLAGE,
+  j.ME_MA_ID,
+  j.EQUNR,
+  j.HOUSE_NUM1,
+  j.ENTSCHEIDUNG,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE ELSE n.TITLE END AS TITLE,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME ELSE n.SURNAME END AS SURNAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET ELSE n.STREET END AS STREET,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1 ELSE n.CITY1 END AS CITY1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2 ELSE n.CITY2 END AS CITY2,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL ELSE n.EMAIL END AS EMAIL
+FROM J09D_temp j
+LEFT JOIN eablg ON eablg.Installation = j.ANLAGE
+LEFT JOIN net_master n ON n.EQUNR = j.EQUNR
+LEFT JOIN sales_master s ON s.EQUNR = j.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_8dc80f14-2c3b-4222-8f5f-0aca086d64ec'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_sAZqzaenpSfLTXGeR0lTCmaU)
+ Call ID: call_sAZqzaenpSfLTXGeR0lTCmaU
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+    filename: J09D_MANDATORY_READING
+  prepare_csv (call_nFf1L4MaW2JpiueqB34fIC09)
+ Call ID: call_nFf1L4MaW2JpiueqB34fIC09
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG = 'DIRECT_MAIL';
+    filename: J09D_DIRECT_MAIL
+  prepare_csv (call_eDoOn0WFpXcLHOeNLVoblgIl)
+ Call ID: call_eDoOn0WFpXcLHOeNLVoblgIl
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG NOT IN ('MANDATORY_READING', 'DIRECT_MAIL');
+    filename: J09D
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such table: J09D_enriched","message":"SQL execution failed"}', 'id': 'lc_b3ebcdc0-b97a-42ef-bf37-cc6edb3abae4'}]
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such table: J09D_enriched","message":"SQL execution failed"}', 'id': 'lc_35a6d0bc-ba9e-465f-9d26-e8616c27f278'}]
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such table: J09D_enriched","message":"SQL execution failed"}', 'id': 'lc_feb3159a-a80c-43d1-8a73-97c4c1466672'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_DGWGF9xYrbyIvCfC4v9jQatn)
+ Call ID: call_DGWGF9xYrbyIvCfC4v9jQatn
+  Args:
+    sqlite_command: PRAGMA table_info('J09D_enriched');
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_0b4206c9-d534-4e23-a538-7c5a116ebae0'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_Lfd3zPxL3qrwQV3VsM7j9cWg)
+ Call ID: call_Lfd3zPxL3qrwQV3VsM7j9cWg
+  Args:
+    sql_query: SELECT name FROM sqlite_temp_master WHERE type='table';
+    filename: debug_temp_tables
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":false,"message":"Query returned no results"}', 'id': 'lc_a8a8f5cf-a958-4d00-a790-6aeab3ec9729'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_AOJyVMnTfJzSTf8X4CQ6TS3L)
+ Call ID: call_AOJyVMnTfJzSTf8X4CQ6TS3L
+  Args:
+    sqlite_command: SELECT name FROM sqlite_master WHERE type='table';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":8,"data":[{"name":"eabl"},{"name":"sales_master"},{"name":"eablg"},{"name":"decision_table"},{"name":"eanl"},{"name":"net_master"},{"name":"process_rules"},{"name":"J09D_temp"}]}', 'id': 'lc_90bb3df7-c7b8-4d8f-88a8-f7a66e30e008'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_Ny6nOdLfVerjfVJ8Hl9fUcgV)
+ Call ID: call_Ny6nOdLfVerjfVJ8Hl9fUcgV
+  Args:
+    sqlite_command: CREATE TABLE J09D_enriched AS
+SELECT 
+  eablg."Meter Reading (MR) Doc. No.",
+  j.HAUS,
+  j.ANLAGE,
+  j.ME_MA_ID,
+  j.EQUNR,
+  j.HOUSE_NUM1,
+  j.ENTSCHEIDUNG,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE ELSE n.TITLE END AS TITLE,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME ELSE n.SURNAME END AS SURNAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET ELSE n.STREET END AS STREET,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1 ELSE n.CITY1 END AS CITY1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2 ELSE n.CITY2 END AS CITY2,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL ELSE n.EMAIL END AS EMAIL
+FROM J09D_temp j
+LEFT JOIN eablg ON eablg.Installation = j.ANLAGE
+LEFT JOIN net_master n ON n.EQUNR = j.EQUNR
+LEFT JOIN sales_master s ON s.EQUNR = j.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_47e0d926-2653-4f96-866f-8704eff20181'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_HqrWRtZ6lN7n3yUoxOhPpT5O)
+ Call ID: call_HqrWRtZ6lN7n3yUoxOhPpT5O
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+    filename: J09D_MANDATORY_READING
+  prepare_csv (call_HYvrcsrJIlc4gFcv2Ap1hHsn)
+ Call ID: call_HYvrcsrJIlc4gFcv2Ap1hHsn
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG = 'DIRECT_MAIL';
+    filename: J09D_DIRECT_MAIL
+  prepare_csv (call_MSkGlvOxuCVs8KAn0J9pl1Mu)
+ Call ID: call_MSkGlvOxuCVs8KAn0J9pl1Mu
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG NOT IN ('MANDATORY_READING', 'DIRECT_MAIL');
+    filename: J09D
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09D_MANDATORY_READING.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_MANDATORY_READING.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_MANDATORY_READING.csv","row_count":1199,"message":"Successfully exported 1199 rows to sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_MANDATORY_READING.csv"}', 'id': 'lc_7ec595e6-045f-4713-a384-90b64f75f542'}]
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09D_DIRECT_MAIL.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_DIRECT_MAIL.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_DIRECT_MAIL.csv","row_count":6661,"message":"Successfully exported 6661 rows to sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_DIRECT_MAIL.csv"}', 'id': 'lc_9cd19f03-b474-4b63-aa11-06fe8ce1ab23'}]
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09D.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D.csv","row_count":19773,"message":"Successfully exported 19773 rows to sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D.csv"}', 'id': 'lc_03a512e0-924c-4f14-8733-3d7d4231bc4f'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_VWclk1pieyfYeDudgEfjc9QL)
+ Call ID: call_VWclk1pieyfYeDudgEfjc9QL
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_MANDATORY_READING.csv
+    email: Attached is the J09D mandatory meter readings file (classification: MANDATORY_READING) for processing.
+    email_address: mandatory.reading@provider.com
+  send_bulk_mail (call_aBBj7UhC75hep0IpKixSbtAP)
+ Call ID: call_aBBj7UhC75hep0IpKixSbtAP
+  Args:
+    csv_file_path: sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_DIRECT_MAIL.csv
+  send_mail (call_AibTU5zrWT08LUkD1UFWm84Y)
+ Call ID: call_AibTU5zrWT08LUkD1UFWm84Y
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D.csv
+    email: Attached is the J09D meter reading file for EVU processing (excluding MANDATORY_READING and DIRECT_MAIL cases).
+    email_address: meter.readings@evu.com
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/process_metadata.csv"}', 'id': 'lc_34189a57-1646-48e4-83f7-2cef94280219'}]
+================================= Tool Message =================================
+Name: send_bulk_mail
+
+[{'type': 'text', 'text': '{"result":"sent 6661 emails"}', 'id': 'lc_77d93290-feee-4bc9-9257-f205929e5fca'}]
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/process_metadata.csv"}', 'id': 'lc_7136bef1-b6fd-4cac-b288-92c7a4323834'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_piEJEW8RUCszAuyI7B0WzH7W)
+ Call ID: call_piEJEW8RUCszAuyI7B0WzH7W
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_enriched;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_ee9017aa-f86c-458c-b442-b47b435ed9c8'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_qFx9RuFU3mkB6xnKpXydkwo9)
+ Call ID: call_qFx9RuFU3mkB6xnKpXydkwo9
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09D_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_bf9a0c8a-62ce-4afe-8c68-00eb438aee98'}]
+================================== Ai Message ==================================
+
+All processing for tour J09D is complete and the temporary tables have been cleaned up. Here’s what was done, step by step, and the resulting outputs.
+
+1. **Create and classify J09D_temp**
+
+- Created table `J09D_temp` from `decision_table`:
+
+  ```sql
+  CREATE TABLE J09D_temp AS
+  SELECT *
+  FROM decision_table
+  WHERE TOUR LIKE 'J09D%';
+  ```
+
+- Added the decision column:
+
+  ```sql
+  ALTER TABLE J09D_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+  ```
+
+- Per-house equipment count and base classification, including the overrides:
+
+  ```sql
+  WITH eq_counts AS (
+    SELECT HAUS, COUNT(DISTINCT EQUNR) AS eq_count
+    FROM J09D_temp
+    GROUP BY HAUS
+  )
+  UPDATE J09D_temp
+  SET ENTSCHEIDUNG = CASE
+    WHEN HOUSE_NUM1 = 0 THEN 'EVU'
+    WHEN HOUSE_NUM1 BETWEEN 500 AND 599 THEN 'EVU'
+    WHEN HOUSE_NUM1 BETWEEN 900 AND 999 THEN 'EVU'
+    WHEN CITY1 IN ('Wiblingwerde', 'Breckerfeld')
+      OR CITY2 IN ('Wiblingwerde', 'Breckerfeld') THEN 'EVU'
+    WHEN eq_counts.eq_count < 3 THEN 'KSA'
+    ELSE 'EVU'
+  END
+  FROM eq_counts
+  WHERE J09D_temp.HAUS = eq_counts.HAUS;
+  ```
+
+This implements:
+
+- `< 3` EQUNR per HAUS ⇒ `KSA`
+- Otherwise ⇒ `EVU`
+- With **overrides to EVU** for:
+  - `HOUSE_NUM1 = 0`
+  - `HOUSE_NUM1 BETWEEN 500 AND 599`
+  - `HOUSE_NUM1 BETWEEN 900 AND 999`
+  - `CITY1` or `CITY2` in (`Wiblingwerde`, `Breckerfeld`)
+
+2. **EABL-based overrides (MANDATORY_READING / DIRECT_MAIL)**
+
+- `MANDATORY_READING`: same ISTABLART in **both 2023 and 2024**:
+
+  ```sql
+  UPDATE J09D_temp
+  SET ENTSCHEIDUNG = 'MANDATORY_READING'
+  WHERE EQUNR IN (
+    SELECT EQUNR
+    FROM eabl
+    WHERE "Record created on" LIKE '2023%'
+      AND ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+    INTERSECT
+    SELECT EQUNR
+    FROM eabl
+    WHERE "Record created on" LIKE '2024%'
+      AND ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+  );
+  ```
+
+- `DIRECT_MAIL`: same ISTABLART in **both 2023 and 2024**, but not already mandatory:
+
+  ```sql
+  UPDATE J09D_temp
+  SET ENTSCHEIDUNG = 'DIRECT_MAIL'
+  WHERE EQUNR IN (
+    SELECT EQUNR
+    FROM eabl
+    WHERE "Record created on" LIKE '2023%'
+      AND ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+    INTERSECT
+    SELECT EQUNR
+    FROM eabl
+    WHERE "Record created on" LIKE '2024%'
+      AND ISTABLART_TXT = 'Ablesung durch Kunden - SAP'
+  )
+  AND ENTSCHEIDUNG <> 'MANDATORY_READING';
+  ```
+
+3. **Enrichment with EABLG and customer master data**
+
+Created table `J09D_enriched` with the requested structure, joining:
+
+- `J09D_temp` → base
+- `eablg` on `Installation = ANLAGE` to get `"Meter Reading (MR) Doc. No."`
+- `sales_master` and `net_master` on `EQUNR` for contact data, **preferring sales** where present
+
+```sql
+CREATE TABLE J09D_enriched AS
+SELECT 
+  eablg."Meter Reading (MR) Doc. No.",
+  j.HAUS,
+  j.ANLAGE,
+  j.ME_MA_ID,
+  j.EQUNR,
+  j.HOUSE_NUM1,
+  j.ENTSCHEIDUNG,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE   ELSE n.TITLE   END AS TITLE,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME ELSE n.FORENAME END AS FORENAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME ELSE n.SURNAME END AS SURNAME,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET  ELSE n.STREET  END AS STREET,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO ELSE n.STREETNO END AS STREETNO,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1  ELSE n.CITY1  END AS CITY1,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2  ELSE n.CITY2  END AS CITY2,
+  CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL  ELSE n.EMAIL  END AS EMAIL
+FROM J09D_temp j
+LEFT JOIN eablg       ON eablg.Installation = j.ANLAGE
+LEFT JOIN net_master  n ON n.EQUNR = j.EQUNR
+LEFT JOIN sales_master s ON s.EQUNR = j.EQUNR;
+```
+
+When both sales and net exist, only the **sales** fields are used in the output columns; if only net exists, the net fields are used.
+
+4. **Exports and distributions**
+
+All exports use the exact column set you specified:
+
+`Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.
+
+a) **MANDATORY_READING**
+
+Query:
+
+```sql
+SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, 
+       HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, 
+       STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+```
+
+- Exported to: `J09D_MANDATORY_READING.csv`
+- Rows: **1,199**
+- File path:  
+  `sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_MANDATORY_READING.csv`
+- Sent via email to: **mandatory.reading@provider.com**  
+  (with a short note indicating these are J09D mandatory meter readings).
+
+b) **DIRECT_MAIL**
+
+Query:
+
+```sql
+SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, 
+       HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, 
+       STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG = 'DIRECT_MAIL';
+```
+
+- Exported to: `J09D_DIRECT_MAIL.csv`
+- Rows: **6,661**
+- File path:  
+  `sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D_DIRECT_MAIL.csv`
+- Uploaded to **send_bulk_mail** service:
+  - Result: `sent 6661 emails`
+
+c) **Remaining EVU / KSA (excluding the above two)**
+
+Query:
+
+```sql
+SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, 
+       HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, 
+       STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09D_enriched
+WHERE ENTSCHEIDUNG NOT IN ('MANDATORY_READING', 'DIRECT_MAIL');
+```
+
+- Exported to: `J09D.csv`
+- Rows: **19,773**
+- File path:  
+  `sessions/gpt-5.1/processadaptation_extension_mail_processadaptationmethod_classic_tour_J09D_seed_4506/J09D.csv`
+- Sent via email to: **meter.readings@evu.com**  
+  (noting that MANDATORY_READING and DIRECT_MAIL cases are excluded).
+
+5. **Cleanup**
+
+- Dropped the working tables:
+
+  ```sql
+  DROP TABLE IF EXISTS J09D_enriched;
+  DROP TABLE IF EXISTS J09D_temp;
+  ```
+
+If you’d like, I can also generate a small validation extract (e.g., a random sample of rows per ENTSCHEIDUNG type) to help you spot-check the classifications.

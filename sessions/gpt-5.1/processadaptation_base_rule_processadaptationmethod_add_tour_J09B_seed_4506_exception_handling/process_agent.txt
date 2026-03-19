@@ -1,0 +1,185 @@
+================================ Human Message =================================
+
+Run process with process_rule_id 'J09B'.
+================================== Ai Message ==================================
+Tool Calls:
+  retrieve_process (call_vWdIw2roqA0KTb00hYtteZDS)
+ Call ID: call_vWdIw2roqA0KTb00hYtteZDS
+  Args:
+    process_rule_id: J09B
+================================= Tool Message =================================
+Name: retrieve_process
+
+[{'type': 'text', 'text': '{"success":true,"process_rule_id":"J09B","process_rule":"1. Create a working copy table `J09B_temp` from `decision_table`:\\n   - Select all rows from `decision_table` where `TOURS` starts with `J09B` (i.e. `TOURS LIKE \'J09B%\'`).\\n   - Insert these rows into a new table named `J09B_temp`.\\n\\n2. Add a new column `ENTSCHEIDUNG` to `J09B_temp`:\\n   - Data type: string/text.\\n   - Initial value: NULL (empty) for all rows.\\n\\n3. Populate `ENTSCHEIDUNG` in `J09B_temp` based on the number of meters (`EQUNR`) per building (`HAUS`):\\n   - For each distinct value of `HAUS` in `J09B_temp`:\\n     - Compute `n_EQUNR` = COUNT of distinct `EQUNR` rows in `J09B_temp` for that `HAUS`.\\n     - IF `n_EQUNR < 3` THEN\\n       - Set `ENTSCHEIDUNG = \'KSA\'` for all rows in `J09B_temp` with that `HAUS`.\\n       - (No rows with that `HAUS` should keep any other value in `ENTSCHEIDUNG`.)\\n       ELSE\\n       - Set `ENTSCHEIDUNG = \'EVU\'` for all rows in `J09B_temp` with that `HAUS`.\\n       - (No rows with that `HAUS` should keep any other value in `ENTSCHEIDUNG`.)\\n       ENDIF\\n\\n4. Join `J09B_temp` with `EABLG` on installation:\\n   - Create an intermediate dataset `D1`:\\n     - `D1` = all rows from `J09B_temp` LEFT JOIN `EABLG`\\n       USING the column `INSTALLATION` (or equivalently `J09B_temp.INSTALLATION = EABLG.INSTALLATION`).\\n     - Include all columns from `J09B_temp` and all needed columns from `EABLG` (at minimum the column that maps to `Meter Reading (MR) Doc. No.` and `ANLAGE`/`INSTALLATION` as needed).\\n\\n5. Join `D1` with `NET_MASTER` and `SALES_MASTER` using `EQUNR`:\\n   - Create an intermediate dataset `D2`:\\n     - `D2` = `D1`\\n       LEFT JOIN `NET_MASTER` ON `D1.EQUNR = NET_MASTER.EQUNR`\\n       LEFT JOIN `SALES_MASTER` ON `D1.EQUNR = SALES_MASTER.EQUNR`.\\n   - Keep all rows from `D1` even if there is no matching record in `NET_MASTER` or `SALES_MASTER`.\\n   - To avoid naming conflicts, in `D2`:\\n     - Keep the `NET_MASTER` columns with a `NET_` prefix (e.g. `NET_ME_MA_ID`, `NET_TITLE`, etc.) if needed internally.\\n     - Keep the `SALES_MASTER` columns with a `SALES_` prefix (e.g. `SALES_ME_MA_ID`, `SALES_TITLE`, etc.) if needed internally.\\n\\n6. Choose between sales data and net data for each row in `D2`:\\n   - Add final unified columns to `D2` for the fields that will be exported:\\n     - `ME_MA_ID`\\n     - `HOUSE_NUM1`\\n     - `TITLE`\\n     - `FORENAME`\\n     - `SURNAME`\\n     - `STREET`\\n     - `STREETNO`\\n     - `POST_CODE1`\\n     - `CITY1`\\n     - `CITY2`\\n     - `EMAIL`\\n   - For each row in `D2`:\\n     - Define “sales data is there” as: the joined `SALES_MASTER` record exists, i.e. `SALES_MASTER.EQUNR` (or any primary key field from `SALES_MASTER`) is NOT NULL.\\n     - IF sales data is there (e.g. `SALES_MASTER.EQUNR IS NOT NULL`) THEN\\n       - Set the unified final fields from `SALES_MASTER`:\\n         - `ME_MA_ID`  = `SALES_ME_MA_ID`\\n         - `HOUSE_NUM1` = `SALES_HOUSE_NUM1`\\n         - `TITLE` = `SALES_TITLE`\\n         - `FORENAME` = `SALES_FORENAME`\\n         - `SURNAME` = `SALES_SURNAME`\\n         - `STREET` = `SALES_STREET`\\n         - `STREETNO` = `SALES_STREETNO`\\n         - `POST_CODE1` = `SALES_POST_CODE1`\\n         - `CITY1` = `SALES_CITY1`\\n         - `CITY2` = `SALES_CITY2`\\n         - `EMAIL` = `SALES_EMAIL`\\n       - “Empty” the net data columns for this row (if they are kept in `D2`), e.g. set:\\n         - `NET_ME_MA_ID`, `NET_HOUSE_NUM1`, `NET_TITLE`, `NET_FORENAME`, `NET_SURNAME`, `NET_STREET`, `NET_STREETNO`, `NET_POST_CODE1`, `NET_CITY1`, `NET_CITY2`, `NET_EMAIL` to NULL.\\n       ELSE\\n       - Use `NET_MASTER` data instead:\\n         - `ME_MA_ID`  = `NET_ME_MA_ID`\\n         - `HOUSE_NUM1` = `NET_HOUSE_NUM1`\\n         - `TITLE` = `NET_TITLE`\\n         - `FORENAME` = `NET_FORENAME`\\n         - `SURNAME` = `NET_SURNAME`\\n         - `STREET` = `NET_STREET`\\n         - `STREETNO` = `NET_STREETNO`\\n         - `POST_CODE1` = `NET_POST_CODE1`\\n         - `CITY1` = `NET_CITY1`\\n         - `CITY2` = `NET_CITY2`\\n         - `EMAIL` = `NET_EMAIL`\\n       - “Empty” the sales data columns for this row (if they are kept in `D2`), e.g. set:\\n         - `SALES_ME_MA_ID`, `SALES_HOUSE_NUM1`, `SALES_TITLE`, `SALES_FORENAME`, `SALES_SURNAME`, `SALES_STREET`, `SALES_STREETNO`, `SALES_POST_CODE1`, `SALES_CITY1`, `SALES_CITY2`, `SALES_EMAIL` to NULL.\\n       ENDIF\\n\\n7. Export the final data to a CSV file named `J09B` (e.g. `J09B.csv`):\\n   - From `D2` after step 6 (the fully joined and resolved dataset), select ONLY the following columns in this order:\\n     - `Meter Reading (MR) Doc. No.`  (from the appropriate source column, typically from `EABLG`)\\n     - `HAUS`                         (from `J09B_temp` / `D1`)\\n     - `ANLAGE`                       (or the equivalent installation field from `EABLG`/`D1`)\\n     - `ME_MA_ID`                     (the unified field from step 6)\\n     - `EQUNR`\\n     - `HOUSE_NUM1`                   (from the unified field in step 6)\\n     - `ENTSCHEIDUNG`                (from `J09B_temp`)\\n     - `TITLE`                        (from the unified field in step 6)\\n     - `FORENAME`                    (from the unified field in step 6)\\n     - `SURNAME`                     (from the unified field in step 6)\\n     - `STREET`                      (from the unified field in step 6)\\n     - `STREETNO`                    (from the unified field in step 6)\\n     - `POST_CODE1`                  (from the unified field in step 6)\\n     - `CITY1`                       (from the unified field in step 6)\\n     - `CITY2`                       (from the unified field in step 6)\\n     - `EMAIL`                       (from the unified field in step 6)\\n   - Write the selected dataset to a CSV file named `J09B` (with `.csv` extension) with a header row matching exactly the column names listed above.\\n\\n8. Send the CSV file to the EVU team:\\n   - Use the system’s email-sending capability.\\n   - To: `meter.readings@evu.com`\\n   - Subject: e.g. `J09B Meter Readings Export`\\n   - Body: brief description, e.g. “Attached is the J09B export.”\\n   - Attach the `J09B.csv` file created in step 7.\\n   - Send the email.\\n\\n9. Delete the temporary table:\\n   - Drop the table `J09B_temp` from the database after the CSV has been successfully created (and, if required, after the email is sent)."}', 'id': 'lc_a2aeed0c-0352-430b-81e9-61775ea812ca'}]
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_nNwsoP3QwKubEMYBajoQlNfE)
+ Call ID: call_nNwsoP3QwKubEMYBajoQlNfE
+  Args:
+  run_sqlite_query (call_7U1ZR0YVmBrAVYkw9rxMgWxB)
+ Call ID: call_7U1ZR0YVmBrAVYkw9rxMgWxB
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09B_temp;
+  run_sqlite_query (call_UWy86bFdnNYSrsnHQyHDX8OH)
+ Call ID: call_UWy86bFdnNYSrsnHQyHDX8OH
+  Args:
+    sqlite_command: CREATE TABLE J09B_temp AS
+SELECT *
+FROM decision_table
+WHERE TOURS LIKE 'J09B%';
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":true,"schema":"# Table: net_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: sales_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: decision_talbe\\n## column_name (type) description\\nHAUS (TEXT) House identifier\\nANLAGE (TEXT) Installation/facility identifier\\nABLEINH (TEXT) Reading unit identifier\\nTOUR (TEXT) Tour/route identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nHOUSE_NUM1 (INTEGER) House/building number\\nPOST_CODE1 (INTEGER) Postal code\\nEQUNR (TEXT) Equipment Number\\n\\n# Table: eabl\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nEQUNR (TEXT) Equipment Number\\nGeplante Ableseart (INTEGER) Planned reading type\\nMR type (TEXT) Meter reading type code\\nMR TYPE TEXT (TEXT) Meter Reading type description\\nMR category (TEXT) Meter reading category\\nISTABLART_TXT (TEXT) Actual reading type description (SAP)\\nLOGIKZW (TEXT) Logic indicator\\nKENNZIFF (TEXT) Identification number\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\n\\n# Table: eablg\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nInstallation (TEXT) Installation identifier\\nMeter Reading reason (INTEGER) Meter reading reason code\\nMR Reason - Text (TEXT) Meter reading reason description\\nScheduled MR Date (TEXT) Scheduled meter reading date\\nMeter Reading unit (TEXT) Meter reading unit\\nMeter Reading (MR) Doc. No..1 (INTEGER) Secondary/duplicate Meter Reading Document Number\\n\\n# Table: eanl\\n## column_name (type) description\\nInstallation (TEXT) Installation identifier\\nInstallation type (TEXT) Type of installation\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\nSPARTE_TEXT (TEXT) Division/sector description\\nAKLASSE (TEXT) Customer class code\\nAKLASSE_TEXT (TEXT) Customer class description\\nTARIFTYP (TEXT) Tariff type code\\nTARIFTYP_TEXT (TEXT) Tariff type description\\nBRANCHE (TEXT) Industry/sector code\\nBRANCHE_TEXT (TEXT) Industry/sector description\\nABLEINH (TEXT) Reading unit identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nHAUS (TEXT) House identifier\\n\\n# Table: process_rules\\n## column_name (type) description\\nprocess_rule_id (TEXT) PRIMARY KEY - Process rule identifier\\nprocess_rule (TEXT) NOT NULL - Process rule text/description"}', 'id': 'lc_090c0b5a-fb94-4847-baa8-521837b75aa3'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_3a180fc8-c513-4d07-b683-d8fa3e16b143'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"no such column: TOURS","message":"SQL execution failed"}', 'id': 'lc_72ef3925-5e7d-413c-b950-06a3c03e7f80'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_MZtMozpnJJ6m0BYVOjrfYGJI)
+ Call ID: call_MZtMozpnJJ6m0BYVOjrfYGJI
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09B_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_1334eeb1-2bcd-4359-b9b2-effc4c1384fb'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_9OIKXb57Ooo6GBjIKLvPx3Qh)
+ Call ID: call_9OIKXb57Ooo6GBjIKLvPx3Qh
+  Args:
+    sqlite_command: CREATE TABLE J09B_temp AS
+SELECT *
+FROM decision_talbe
+WHERE TOUR LIKE 'J09B%';
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_05760277-356b-4bd2-a10a-71ad4254b4e5'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_j7puCA2AsoSj65iKeUA7fLVA)
+ Call ID: call_j7puCA2AsoSj65iKeUA7fLVA
+  Args:
+    sqlite_command: ALTER TABLE J09B_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_630bb784-cf5c-4989-87a2-aa4f054f2e00'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_PWmiupS63H4yRlBiExmexsaH)
+ Call ID: call_PWmiupS63H4yRlBiExmexsaH
+  Args:
+    sqlite_command: UPDATE J09B_temp
+SET ENTSCHEIDUNG = CASE
+  WHEN HAUS IN (
+    SELECT HAUS
+    FROM J09B_temp
+    GROUP BY HAUS
+    HAVING COUNT(DISTINCT EQUNR) < 3
+  ) THEN 'KSA'
+  ELSE 'EVU'
+END;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":4785,"message":"Query executed successfully. 4785 row(s) affected."}', 'id': 'lc_c0df107c-a279-4c13-bdcb-5cfaf92195b1'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_LeXzCipSxMk6uAa1JhN84R6O)
+ Call ID: call_LeXzCipSxMk6uAa1JhN84R6O
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS D1;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_97855201-d347-4fa9-be27-9719dc13c56d'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_hirwNz8VIMXCUxsTms93pgU2)
+ Call ID: call_hirwNz8VIMXCUxsTms93pgU2
+  Args:
+    sqlite_command: CREATE TABLE D1 AS
+SELECT
+  J09B_temp.*,
+  eablg."Meter Reading (MR) Doc. No.",
+  eablg.Installation AS EABLG_INSTALLATION
+FROM J09B_temp
+LEFT JOIN eablg
+  ON J09B_temp.ANLAGE = eablg.Installation;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_da9c87ee-2da4-491c-be2d-34af8d23cfdf'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_rq63uTBAJLenHtM4oeD1qD8P)
+ Call ID: call_rq63uTBAJLenHtM4oeD1qD8P
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS D2;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_d9043dae-7df3-4092-9a29-2fa1c44b9b60'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_klH4XNKEhsatXzD2nYj40vzS)
+ Call ID: call_klH4XNKEhsatXzD2nYj40vzS
+  Args:
+    sqlite_command: CREATE TABLE D2 AS
+SELECT
+  D1.*,
+  net_master.EQUNR AS NET_EQUNR,
+  net_master.TITLE AS NET_TITLE,
+  net_master.FORENAME AS NET_FORENAME,
+  net_master.SURNAME AS NET_SURNAME,
+  net_master.STREET AS NET_STREET,
+  net_master.STREETNO AS NET_STREETNO,
+  net_master.CITY1 AS NET_CITY1,
+  net_master.CITY2 AS NET_CITY2,
+  net_master.POST_CODE1 AS NET_POST_CODE1,
+  net_master.EMAIL AS NET_EMAIL,
+  sales_master.EQUNR AS SALES_EQUNR,
+  sales_master.TITLE AS SALES_TITLE,
+  sales_master.FORENAME AS SALES_FORENAME,
+  sales_master.SURNAME AS SALES_SURNAME,
+  sales_master.STREET AS SALES_STREET,
+  sales_master.STREETNO AS SALES_STREETNO,
+  sales_master.CITY1 AS SALES_CITY1,
+  sales_master.CITY2 AS SALES_CITY2,
+  sales_master.POST_CODE1 AS SALES_POST_CODE1,
+  sales_master.EMAIL AS SALES_EMAIL
+FROM D1
+LEFT JOIN net_master ON D1.EQUNR = net_master.EQUNR
+LEFT JOIN sales_master ON D1.EQUNR = sales_master.EQUNR;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_bcef9f6b-4f6f-4cdc-b50e-df88a5a6260a'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_bIdGKHHs3rVAPpX3NFrhKYTj)
+ Call ID: call_bIdGKHHs3rVAPpX3NFrhKYTj
+  Args:
+    sqlite_command: ALTER TABLE D2 ADD COLUMN ME_MA_ID TEXT;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"duplicate column name: ME_MA_ID","message":"SQL execution failed"}', 'id': 'lc_aafaf51f-ae02-44cc-acab-0400c303ff0f'}]
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_lM36zBLXRkEdQVNHMKVdYlDu)
+ Call ID: call_lM36zBLXRkEdQVNHMKVdYlDu
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":true,"schema":"# Table: net_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: sales_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: decision_talbe\\n## column_name (type) description\\nHAUS (TEXT) House identifier\\nANLAGE (TEXT) Installation/facility identifier\\nABLEINH (TEXT) Reading unit identifier\\nTOUR (TEXT) Tour/route identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nHOUSE_NUM1 (INTEGER) House/building number\\nPOST_CODE1 (INTEGER) Postal code\\nEQUNR (TEXT) Equipment Number\\n\\n# Table: eabl\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nEQUNR (TEXT) Equipment Number\\nGeplante Ableseart (INTEGER) Planned reading type\\nMR type (TEXT) Meter reading type code\\nMR TYPE TEXT (TEXT) Meter Reading type description\\nMR category (TEXT) Meter reading category\\nISTABLART_TXT (TEXT) Actual reading type description (SAP)\\nLOGIKZW (TEXT) Logic indicator\\nKENNZIFF (TEXT) Identification number\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\n\\n# Table: eablg\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nInstallation (TEXT) Installation identifier\\nMeter Reading reason (INTEGER) Meter reading reason code\\nMR Reason - Text (TEXT) Meter reading reason description\\nScheduled MR Date (TEXT) Scheduled meter reading date\\nMeter Reading unit (TEXT) Meter reading unit\\nMeter Reading (MR) Doc. No..1 (INTEGER) Secondary/duplicate Meter Reading Document Number\\n\\n# Table: eanl\\n## column_name (type) description\\nInstallation (TEXT) Installation identifier\\nInstallation type (TEXT) Type of installation\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\nSPARTE_TEXT (TEXT) Division/sector description\\nAKLASSE (TEXT) Customer class code\\nAKLASSE_TEXT (TEXT) Customer class description\\nTARIFTYP (TEXT) Tariff type code\\nTARIFTYP_TEXT (TEXT) Tariff type description\\nBRANCHE (TEXT) Industry/sector code\\nBRANCHE_TEXT (TEXT) Industry/sector description\\nABLEINH (TEXT) Reading unit identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nHAUS (TEXT) House identifier\\n\\n# Table: process_rules\\n## column_name (type) description\\nprocess_rule_id (TEXT) PRIMARY KEY - Process rule identifier\\nprocess_rule (TEXT) NOT NULL - Process rule text/description"}', 'id': 'lc_a011d88c-b079-4896-bb84-18f2a2b3f10d'}]
+================================== Ai Message ==================================

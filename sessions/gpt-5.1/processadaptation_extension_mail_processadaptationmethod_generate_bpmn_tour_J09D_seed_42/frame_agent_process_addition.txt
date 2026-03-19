@@ -1,0 +1,74 @@
+================================ Human Message =================================
+
+Use the generate_process_rule_from_bpmn tool to generate a process rule from the following BPMN file: bpmn/J09D_extension_mail.bpmn and store it in the database as J09D
+================================== Ai Message ==================================
+Tool Calls:
+  generate_process_rule_from_bpmn (call_QUFSUY28jFP5aYQRFL1bbzzO)
+ Call ID: call_QUFSUY28jFP5aYQRFL1bbzzO
+  Args:
+    bpmn_path: bpmn/J09D_extension_mail.bpmn
+    process_rule_id: J09D
+================================= Tool Message =================================
+Name: generate_process_rule_from_bpmn
+
+[{'type': 'text', 'text': '{"success":true,"process_rule_id":"J09D","process_rule":"1. Create working table `J09D_temp` by copying all rows from the existing decision table where the tour identifier starts with `\\"J09D\\"`.\\n\\n2. In `J09D_temp`, add a new string column `ENTSCHEIDUNG` (initially NULL).\\n\\n3. In `J09D_temp`, classify each HAUS into `KSA` or `EVU` by setting `ENTSCHEIDUNG` using these rules, in this order:\\n   3.1 For each `HAUS`, count how many `EQUNR` belong to that `HAUS`. If the count is less than 3, set `ENTSCHEIDUNG = \\"KSA\\"` for those rows; otherwise set `ENTSCHEIDUNG = \\"EVU\\"`.\\n   3.2 If `HOUSE_NUM1 = 0`, override `ENTSCHEIDUNG` to `\\"EVU\\"`.\\n   3.3 If `500 ≤ HOUSE_NUM1 ≤ 599`, override `ENTSCHEIDUNG` to `\\"EVU\\"`.\\n   3.4 If `900 ≤ HOUSE_NUM1 ≤ 999`, override `ENTSCHEIDUNG` to `\\"EVU\\"`.\\n   3.5 If the address area is `\\"Wiblingwerde\\"` or `\\"Breckerfeld\\"`, override `ENTSCHEIDUNG` to `\\"EVU\\"`.\\n\\n4. JOIN `J09D_temp` with table `EABLG` using `INSTALLATION` as the join key, and enrich `J09D_temp` with the required meter-reading data from `EABLG`.\\n\\n5. JOIN the result with `SALES_MASTER` and `NET_MASTER` using `EQUNR` as the join key so that, for each `EQUNR`, both sales and net customer master data are available in `J09D_temp`.\\n\\n6. For each record in `J09D_temp`, compare the available customer data from `SALES_MASTER` and `NET_MASTER` and determine whether the sales customer data for that record is present (non-empty) or absent.\\n\\n7. For each record in `J09D_temp`, select the customer master data source as follows:  \\n   IF sales customer data for the record is present (from `SALES_MASTER`):  \\n   &nbsp;&nbsp;7.1 Use the customer attributes from `SALES_MASTER` as the customer data for that record and ignore `NET_MASTER` for that record.  \\n   ELSE:  \\n   &nbsp;&nbsp;7.2 Use the customer attributes from `NET_MASTER` as the customer data for that record and ignore `SALES_MASTER` for that record.\\n\\n8. Identify households that require mandatory meter reading and mark them:\\n   8.1 In table `EABL`, find all `EQUNR` that have a record created in 2024 with `ISTABLART_TXT = \\"Maschinelle Schätzung - SAP\\"` and also a record created in 2023 with `ISTABLART_TXT = \\"Maschinelle Schätzung - SAP\\"`.\\n   8.2 For all rows in `J09D_temp` with these `EQUNR`, set `ENTSCHEIDUNG = \\"MANDATORY_READING\\"` (overwriting any previous value).\\n\\n9. Export all rows from `J09D_temp` where `ENTSCHEIDUNG = \\"MANDATORY_READING\\"` to a CSV file named `J09D_MANDATORY_READING.csv`. Include exactly the columns:  \\n   `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.  \\n   Save the file at `<file path for J09D_MANDATORY_READING.csv here>`.\\n\\n10. Send the `J09D_MANDATORY_READING.csv` file to the internal team by email: send an email to `mandatory.reading@provider.com` with the file from `<file path for J09D_MANDATORY_READING.csv here>` attached.\\n\\n11. Identify trustworthy households for meter reading self-report and mark them as `DIRECT_MAIL`:\\n    11.1 In table `EABL`, find all `EQUNR` that have a record created in 2024 with `ISTABLART_TXT = \\"Ablesung durch Kunden - SAP\\"` and also a record created in 2023 with `ISTABLART_TXT = \\"Ablesung durch Kunden - SAP\\"`.\\n    11.2 For all rows in `J09D_temp` with these `EQUNR` and with `ENTSCHEIDUNG` not equal to `\\"MANDATORY_READING\\"`, set `ENTSCHEIDUNG = \\"DIRECT_MAIL\\"` (overwriting any other value).\\n\\n12. Export all rows from `J09D_temp` where `ENTSCHEIDUNG = \\"DIRECT_MAIL\\"` to a CSV file named `J09D_DIRECT_MAIL.csv`. Include exactly the columns:  \\n    `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.  \\n    Save the file at `<file path for J09D_DIRECT_MAIL.csv here>`.\\n\\n13. Upload the file for direct mail: upload `J09D_DIRECT_MAIL.csv` from `<file path for J09D_DIRECT_MAIL.csv here>` to the `send_bulk_mail` service and trigger sending of direct emails to all customers listed in the file (using their `EMAIL` addresses).\\n\\n14. Export the remaining final data (excluding `MANDATORY_READING` and `DIRECT_MAIL`) as the J09D CSV:\\n    14.1 From `J09D_temp`, select all rows where `ENTSCHEIDUNG` is not `\\"MANDATORY_READING\\"` and not `\\"DIRECT_MAIL\\"`.\\n    14.2 Export these rows to a CSV file named `J09D.csv`. Include exactly the columns:  \\n    `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.  \\n    Save the file at `<path_to_exported_csv_file>`.\\n\\n15. Send the J09D CSV file to the EVU by email: send an email to `meter.readings@evu.com` with the file from `<path_to_exported_csv_file>` attached.\\n\\n16. Delete temporary data: drop `J09D_temp` and any other temporary tables created only for this process.\\n\\n17. End the process."}', 'id': 'lc_7ce820aa-6473-4d1f-b140-f56bf3cbd8e0'}]
+================================== Ai Message ==================================
+
+The process rule has been generated from `bpmn/J09D_extension_mail.bpmn` and stored in the database under ID `J09D`.
+
+Here is the stored rule text for reference:
+
+1. Create working table `J09D_temp` by copying all rows from the existing decision table where the tour identifier starts with `"J09D"`.
+
+2. In `J09D_temp`, add a new string column `ENTSCHEIDUNG` (initially NULL).
+
+3. In `J09D_temp`, classify each HAUS into `KSA` or `EVU` by setting `ENTSCHEIDUNG` using these rules, in this order:  
+   3.1 For each `HAUS`, count how many `EQUNR` belong to that `HAUS`. If the count is less than 3, set `ENTSCHEIDUNG = "KSA"` for those rows; otherwise set `ENTSCHEIDUNG = "EVU"`.  
+   3.2 If `HOUSE_NUM1 = 0`, override `ENTSCHEIDUNG` to `"EVU"`.  
+   3.3 If `500 ≤ HOUSE_NUM1 ≤ 599`, override `ENTSCHEIDUNG` to `"EVU"`.  
+   3.4 If `900 ≤ HOUSE_NUM1 ≤ 999`, override `ENTSCHEIDUNG` to `"EVU"`.  
+   3.5 If the address area is `"Wiblingwerde"` or `"Breckerfeld"`, override `ENTSCHEIDUNG` to `"EVU"`.
+
+4. JOIN `J09D_temp` with table `EABLG` using `INSTALLATION` as the join key, and enrich `J09D_temp` with the required meter-reading data from `EABLG`.
+
+5. JOIN the result with `SALES_MASTER` and `NET_MASTER` using `EQUNR` as the join key so that, for each `EQUNR`, both sales and net customer master data are available in `J09D_temp`.
+
+6. For each record in `J09D_temp`, compare the available customer data from `SALES_MASTER` and `NET_MASTER` and determine whether the sales customer data for that record is present (non-empty) or absent.
+
+7. For each record in `J09D_temp`, select the customer master data source as follows:  
+   IF sales customer data for the record is present (from `SALES_MASTER`):  
+   · 7.1 Use the customer attributes from `SALES_MASTER` as the customer data for that record and ignore `NET_MASTER` for that record.  
+   ELSE:  
+   · 7.2 Use the customer attributes from `NET_MASTER` as the customer data for that record and ignore `SALES_MASTER` for that record.
+
+8. Identify households that require mandatory meter reading and mark them:  
+   8.1 In table `EABL`, find all `EQUNR` that have a record created in 2024 with `ISTABLART_TXT = "Maschinelle Schätzung - SAP"` and also a record created in 2023 with `ISTABLART_TXT = "Maschinelle Schätzung - SAP"`.  
+   8.2 For all rows in `J09D_temp` with these `EQUNR`, set `ENTSCHEIDUNG = "MANDATORY_READING"` (overwriting any previous value).
+
+9. Export all rows from `J09D_temp` where `ENTSCHEIDUNG = "MANDATORY_READING"` to a CSV file named `J09D_MANDATORY_READING.csv`. Include exactly the columns:  
+   `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.  
+   Save the file at `<file path for J09D_MANDATORY_READING.csv here>`.
+
+10. Send the `J09D_MANDATORY_READING.csv` file to the internal team by email: send an email to `mandatory.reading@provider.com` with the file from `<file path for J09D_MANDATORY_READING.csv here>` attached.
+
+11. Identify trustworthy households for meter reading self-report and mark them as `DIRECT_MAIL`:  
+    11.1 In table `EABL`, find all `EQUNR` that have a record created in 2024 with `ISTABLART_TXT = "Ablesung durch Kunden - SAP"` and also a record created in 2023 with `ISTABLART_TXT = "Ablesung durch Kunden - SAP"`.  
+    11.2 For all rows in `J09D_temp` with these `EQUNR` and with `ENTSCHEIDUNG` not equal to `"MANDATORY_READING"`, set `ENTSCHEIDUNG = "DIRECT_MAIL"` (overwriting any other value).
+
+12. Export all rows from `J09D_temp` where `ENTSCHEIDUNG = "DIRECT_MAIL"` to a CSV file named `J09D_DIRECT_MAIL.csv`. Include exactly the columns:  
+    `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.  
+    Save the file at `<file path for J09D_DIRECT_MAIL.csv here>`.
+
+13. Upload the file for direct mail: upload `J09D_DIRECT_MAIL.csv` from `<file path for J09D_DIRECT_MAIL.csv here>` to the `send_bulk_mail` service and trigger sending of direct emails to all customers listed in the file (using their `EMAIL` addresses).
+
+14. Export the remaining final data (excluding `MANDATORY_READING` and `DIRECT_MAIL`) as the J09D CSV:  
+    14.1 From `J09D_temp`, select all rows where `ENTSCHEIDUNG` is not `"MANDATORY_READING"` and not `"DIRECT_MAIL"`.  
+    14.2 Export these rows to a CSV file named `J09D.csv`. Include exactly the columns:  
+    `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.  
+    Save the file at `<path_to_exported_csv_file>`.
+
+15. Send the J09D CSV file to the EVU by email: send an email to `meter.readings@evu.com` with the file from `<path_to_exported_csv_file>` attached.
+
+16. Delete temporary data: drop `J09D_temp` and any other temporary tables created only for this process.
+
+17. End the process.

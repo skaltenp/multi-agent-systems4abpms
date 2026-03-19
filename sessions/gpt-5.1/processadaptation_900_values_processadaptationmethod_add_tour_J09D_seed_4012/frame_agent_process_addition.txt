@@ -1,0 +1,128 @@
+================================ Human Message =================================
+
+**Add** this process rule with id 'J09D' to the rule database:
+
+1. Make a copy of decision_table with TOURS starting with J09D named J09D_temp
+2. Update the table with an additional empty column ENTSCHEIDUNG
+3. Apply the following rules to the joined table:
+    1. Count the number of EQUNR for every HAUS and set ENTSCHEIDUNG to "KSA" if there are less than 3 EQUNR. ELSE set ENTSCHEIDUNG to "EVU"
+    2. SET all houses with HOUSE_NUM1 of 0 to "EVU"
+    3. SET all houses with HOUSE_NUM1 500 - 599 to "EVU"
+    4. SET all houses with HOUSE_NUM1 900 - 999 to "EVU"
+4. JOIN this table with the EABLG table using INSTALLATION.
+5. JOIN this table with the NET_MASTER table and the SALES_MASTER table using EQUNR.
+6. Compare sales data and net data for these IDs:
+    If sales data is there, take sales data and empty net data.
+    Otherwise stay with net data and empty sales data.
+7. Export the final data from the table as CSV file named J09D including the columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`
+8. Send them to the EVU team to meter.readings@evu.com
+9. Delete the temporary table after exporting the data.
+
+================================== Ai Message ==================================
+Tool Calls:
+  generate_process_rule (call_ZwOGNUYXc5AFTiwXQvJN71I6)
+ Call ID: call_ZwOGNUYXc5AFTiwXQvJN71I6
+  Args:
+    user_request: 1. Make a copy of decision_table with TOURS starting with J09D named J09D_temp
+2. Update the table with an additional empty column ENTSCHEIDUNG
+3. Apply the following rules to the joined table:
+    1. Count the number of EQUNR for every HAUS and set ENTSCHEIDUNG to "KSA" if there are less than 3 EQUNR. ELSE set ENTSCHEIDUNG to "EVU"
+    2. SET all houses with HOUSE_NUM1 of 0 to "EVU"
+    3. SET all houses with HOUSE_NUM1 500 - 599 to "EVU"
+    4. SET all houses with HOUSE_NUM1 900 - 999 to "EVU"
+4. JOIN this table with the EABLG table using INSTALLATION.
+5. JOIN this table with the NET_MASTER table and the SALES_MASTER table using EQUNR.
+6. Compare sales data and net data for these IDs:
+    If sales data is there, take sales data and empty net data.
+    Otherwise stay with net data and empty sales data.
+7. Export the final data from the table as CSV file named J09D including the columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`
+8. Send them to the EVU team to meter.readings@evu.com
+9. Delete the temporary table after exporting the data.
+    process_rule_id: J09D
+================================= Tool Message =================================
+Name: generate_process_rule
+
+[{'type': 'text', 'text': '{"success":true,"process_rule_id":"J09D","process_rule":"1. Create the temporary working table.\\n   1.1. Select all rows from `decision_table` where `TOURS` starts with `\'J09D\'` and copy them into a new table named `J09D_temp`.\\n        - Use a query equivalent to:\\n          - `CREATE TABLE J09D_temp AS SELECT * FROM decision_table WHERE TOURS LIKE \'J09D%\';`\\n\\n2. Add the decision column.\\n   2.1. Alter `J09D_temp` to add a new column `ENTSCHEIDUNG` of type text/string, defaulting to NULL.\\n\\n3. Set `ENTSCHEIDUNG` based on the number of meters (`EQUNR`) per house (`HAUS`), then override based on `HOUSE_NUM1`.\\n   3.1. For each distinct `HAUS` value in `J09D_temp`:\\n        - Compute `eq_count` = number of rows in `J09D_temp` for that `HAUS` (count of `EQUNR`).\\n        - If `eq_count < 3`:\\n          - Update all rows in `J09D_temp` with this `HAUS` and set `ENTSCHEIDUNG = \'KSA\'`.\\n        - Else:\\n          - Update all rows in `J09D_temp` with this `HAUS` and set `ENTSCHEIDUNG = \'EVU\'`.\\n\\n   3.2. For each row in `J09D_temp`, override the previous decision based on `HOUSE_NUM1`:\\n        - If `HOUSE_NUM1 = 0` OR `500 <= HOUSE_NUM1 <= 599` OR `900 <= HOUSE_NUM1 <= 999`:\\n          - Set `ENTSCHEIDUNG = \'EVU\'` for that row (even if it was previously set to `\'KSA\'`).\\n        - Else:\\n          - Do not change `ENTSCHEIDUNG` for that row.\\n\\n4. Join `J09D_temp` with `EABLG` on installation/anlage.\\n   4.1. Create a new working table (or view) `J09D_eablg` as a LEFT JOIN from `J09D_temp` to `EABLG`:\\n        - Join condition: `J09D_temp.INSTALLATION = EABLG.INSTALLATION` (or `J09D_temp.ANLAGE = EABLG.ANLAGE`, depending on actual column names).\\n        - Preserve all rows from `J09D_temp`.\\n\\n5. Join with `NET_MASTER` and `SALES_MASTER` on `EQUNR`.\\n   5.1. Create a new working table (or view) `J09D_full_raw` as:\\n        - Start from `J09D_eablg` as the base.\\n        - LEFT JOIN `NET_MASTER` ON `J09D_eablg.EQUNR = NET_MASTER.EQUNR`.\\n        - LEFT JOIN `SALES_MASTER` ON `J09D_eablg.EQUNR = SALES_MASTER.EQUNR`.\\n        - Assume at most one matching row per `EQUNR` in `NET_MASTER` and `SALES_MASTER`. If multiple rows exist, restrict or aggregate so that there is at most one row per (`J09D_eablg` record, `EQUNR`).\\n\\n6. Resolve conflicts between sales data and net data.\\n   6.1. Create a new working table `J09D_final` based on `J09D_full_raw` by applying the following rule for each row (identified by `EQUNR` and associated keys):\\n        - Determine whether a `SALES_MASTER` record exists for the row:\\n          - If there is at least one non-null identifier that indicates a valid SALES record (e.g., `SALES_MASTER.ME_MA_ID` or primary key of SALES_MASTER is non-null):\\n            - Use sales data fields (from `SALES_MASTER`) as the source for customer/contact/address data, such as:\\n              - `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`, and any other overlapping person/address fields.\\n            - For the corresponding fields coming from `NET_MASTER`, set them to NULL (i.e., \\"empty net data\\" for those fields).\\n          - Else:\\n            - Use net data fields (from `NET_MASTER`) as the source for customer/contact/address data (same set of fields).\\n            - For the corresponding fields coming from `SALES_MASTER`, set them to NULL (i.e., \\"empty sales data\\" for those fields).\\n\\n7. Prepare and export the final CSV.\\n   7.1. From `J09D_final`, select exactly the following columns, mapped from the appropriate source tables:\\n        - `Meter Reading (MR) Doc. No.`  (from the meter reading / EABLG or source where this field resides)\\n        - `HAUS`\\n        - `ANLAGE` (installation)\\n        - `ME_MA_ID`\\n        - `EQUNR`\\n        - `HOUSE_NUM1`\\n        - `ENTSCHEIDUNG`\\n        - `TITLE`\\n        - `FORENAME`\\n        - `SURNAME`\\n        - `STREET`\\n        - `STREETNO`\\n        - `POST_CODE1`\\n        - `CITY1`\\n        - `CITY2`\\n        - `EMAIL`\\n   7.2. Export this selection to a CSV file named `J09D.csv` in the working directory (or specified export folder).\\n        - Ensure CSV has a header row with the column names as listed above.\\n        - Use a standard delimiter (e.g., `;` or `,`) consistently; if not specified by the environment, default to `,`.\\n\\n8. Email the CSV to the EVU team.\\n   8.1. Compose an email to `meter.readings@evu.com`.\\n   8.2. Set an appropriate subject, e.g., `J09D Meter Reading Export`.\\n   8.3. Attach the file `J09D.csv`.\\n   8.4. Send the email.\\n\\n9. Clean up temporary tables.\\n   9.1. Delete (drop) the temporary tables or views created in this process, at minimum:\\n        - Drop `J09D_temp`.\\n        - Drop `J09D_eablg` and `J09D_full_raw` if they were created as physical tables.\\n        - Optionally drop `J09D_final` if no longer needed after export and email have completed."}', 'id': 'lc_86e58d0c-066d-4a80-91ac-2103c4b77ecf'}]
+================================== Ai Message ==================================
+
+The process rule with ID `J09D` has been stored in the rule database with the following definition:
+
+1. Create the temporary working table.  
+   1.1. Select all rows from `decision_table` where `TOURS` starts with `'J09D'` and copy them into a new table named `J09D_temp`.  
+       - Use a query equivalent to:  
+         - `CREATE TABLE J09D_temp AS SELECT * FROM decision_table WHERE TOURS LIKE 'J09D%';`
+
+2. Add the decision column.  
+   2.1. Alter `J09D_temp` to add a new column `ENTSCHEIDUNG` of type text/string, defaulting to NULL.
+
+3. Set `ENTSCHEIDUNG` based on the number of meters (`EQUNR`) per house (`HAUS`), then override based on `HOUSE_NUM1`.  
+   3.1. For each distinct `HAUS` value in `J09D_temp`:
+   - Compute `eq_count` = number of rows in `J09D_temp` for that `HAUS` (count of `EQUNR`).  
+   - If `eq_count < 3`:
+     - Update all rows in `J09D_temp` with this `HAUS` and set `ENTSCHEIDUNG = 'KSA'`.  
+   - Else:
+     - Update all rows in `J09D_temp` with this `HAUS` and set `ENTSCHEIDUNG = 'EVU'`.
+
+   3.2. For each row in `J09D_temp`, override the previous decision based on `HOUSE_NUM1`:  
+   - If `HOUSE_NUM1 = 0` OR `500 <= HOUSE_NUM1 <= 599` OR `900 <= HOUSE_NUM1 <= 999`:  
+     - Set `ENTSCHEIDUNG = 'EVU'` for that row (even if it was previously set to `'KSA'`).  
+   - Else:  
+     - Do not change `ENTSCHEIDUNG` for that row.
+
+4. Join `J09D_temp` with `EABLG` on installation/anlage.  
+   4.1. Create a new working table (or view) `J09D_eablg` as a LEFT JOIN from `J09D_temp` to `EABLG`:  
+   - Join condition: `J09D_temp.INSTALLATION = EABLG.INSTALLATION` (or `J09D_temp.ANLAGE = EABLG.ANLAGE`, depending on actual column names).  
+   - Preserve all rows from `J09D_temp`.
+
+5. Join with `NET_MASTER` and `SALES_MASTER` on `EQUNR`.  
+   5.1. Create a new working table (or view) `J09D_full_raw` as:  
+   - Start from `J09D_eablg` as the base.  
+   - LEFT JOIN `NET_MASTER` ON `J09D_eablg.EQUNR = NET_MASTER.EQUNR`.  
+   - LEFT JOIN `SALES_MASTER` ON `J09D_eablg.EQUNR = SALES_MASTER.EQUNR`.  
+   - Assume at most one matching row per `EQUNR` in `NET_MASTER` and `SALES_MASTER`. If multiple rows exist, restrict or aggregate so that there is at most one row per (`J09D_eablg` record, `EQUNR`).
+
+6. Resolve conflicts between sales data and net data.  
+   6.1. Create a new working table `J09D_final` based on `J09D_full_raw` by applying the following rule for each row (identified by `EQUNR` and associated keys):  
+   - Determine whether a `SALES_MASTER` record exists for the row:  
+     - If there is at least one non-null identifier that indicates a valid SALES record (e.g., `SALES_MASTER.ME_MA_ID` or primary key of SALES_MASTER is non-null):  
+       - Use sales data fields (from `SALES_MASTER`) as the source for customer/contact/address data, such as:  
+         - `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`, and any other overlapping person/address fields.  
+       - For the corresponding fields coming from `NET_MASTER`, set them to NULL (i.e., “empty net data” for those fields).  
+     - Else:  
+       - Use net data fields (from `NET_MASTER`) as the source for customer/contact/address data (same set of fields).  
+       - For the corresponding fields coming from `SALES_MASTER`, set them to NULL (i.e., “empty sales data” for those fields).
+
+7. Prepare and export the final CSV.  
+   7.1. From `J09D_final`, select exactly the following columns, mapped from the appropriate source tables:  
+   - `Meter Reading (MR) Doc. No.`  
+   - `HAUS`  
+   - `ANLAGE` (installation)  
+   - `ME_MA_ID`  
+   - `EQUNR`  
+   - `HOUSE_NUM1`  
+   - `ENTSCHEIDUNG`  
+   - `TITLE`  
+   - `FORENAME`  
+   - `SURNAME`  
+   - `STREET`  
+   - `STREETNO`  
+   - `POST_CODE1`  
+   - `CITY1`  
+   - `CITY2`  
+   - `EMAIL`  
+
+   7.2. Export this selection to a CSV file named `J09D.csv` in the working directory (or specified export folder).  
+   - Ensure CSV has a header row with the column names as listed above.  
+   - Use a standard delimiter (e.g., `;` or `,`) consistently; if not specified by the environment, default to `,`.
+
+8. Email the CSV to the EVU team.  
+   8.1. Compose an email to `meter.readings@evu.com`.  
+   8.2. Set an appropriate subject, e.g., `J09D Meter Reading Export`.  
+   8.3. Attach the file `J09D.csv`.  
+   8.4. Send the email.
+
+9. Clean up temporary tables.  
+   9.1. Delete (drop) the temporary tables or views created in this process, at minimum:  
+   - Drop `J09D_temp`.  
+   - Drop `J09D_eablg` and `J09D_full_raw` if they were created as physical tables.  
+   - Optionally drop `J09D_final` if no longer needed after export and email have completed.

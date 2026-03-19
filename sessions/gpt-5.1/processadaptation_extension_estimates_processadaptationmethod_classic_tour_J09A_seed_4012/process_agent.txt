@@ -1,0 +1,326 @@
+================================ Human Message =================================
+
+I need you to process the meter readings for tour J09A. Take all entries from the decision_table where the TOUR starts with "J09A" and put them into a temporary table called J09A_temp. Then add a new column called ENTSCHEIDUNG to that table.
+
+For classifying each house: count how many equipment numbers (EQUNR) belong to each house (HAUS). If a house has fewer than 3 equipment numbers, set its ENTSCHEIDUNG to "KSA". Otherwise, set it to "EVU". There are four additional overrides that always result in "EVU": houses where HOUSE_NUM1 is 0, houses where HOUSE_NUM1 is between 500 and 599, houses where HOUSE_NUM1 is between 900 and 999, and houses located in the areas of Wiblingwerde or Breckerfeld.
+
+Next, enrich the data by joining it with the EABLG table using the INSTALLATION field, and also pull in customer contact details from both the net_master and sales_master tables using the EQUNR field. When both net and sales data exist for a customer, prefer the sales data and leave the net data fields empty. If only net data exists, keep that.
+
+There is one more classification to handle: check the EABL table for equipment numbers that had "Maschinelle Schätzung - SAP" as ISTABLART_TXT in both 2023 and 2024 (based on Record created on). For those, set ENTSCHEIDUNG to "MANDATORY_READING".
+
+Export the MANDATORY_READING entries separately as a CSV file named "J09A_MANDATORY_READING" with these columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`. Send that file to the internal team at mandatory.reading@provider.com.
+
+Then export all remaining entries (everything except MANDATORY_READING) as a CSV file named "J09A" with the same columns. Send that to the EVU team at meter.readings@evu.com. After that, delete the temporary table.
+
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_cI3ewOu65sTI0JtHql4quc39)
+ Call ID: call_cI3ewOu65sTI0JtHql4quc39
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":true,"schema":"# Table: net_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: sales_master\\n## column_name (type) description\\nEQUNR (TEXT) Equipment Number\\nTITLE (TEXT) Title (Mr., Mrs., Dr., etc.)\\nFORENAME (TEXT) First name\\nSURNAME (TEXT) Last name/surname\\nSTREET (TEXT) Street name\\nSTREETNO (TEXT) Street number\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nPOST_CODE1 (INTEGER) Postal code\\nEMAIL (TEXT) Email address\\n\\n# Table: decision_table\\n## column_name (type) description\\nHAUS (TEXT) House identifier\\nANLAGE (TEXT) Installation/facility identifier\\nABLEINH (TEXT) Reading unit identifier\\nTOUR (TEXT) Tour/route identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nCITY1 (TEXT) City name\\nCITY2 (TEXT) District/additional city information\\nHOUSE_NUM1 (INTEGER) House/building number\\nPOST_CODE1 (INTEGER) Postal code\\nEQUNR (TEXT) Equipment Number\\n\\n# Table: eabl\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nEQUNR (TEXT) Equipment Number\\nGeplante Ableseart (INTEGER) Planned reading type\\nMR type (TEXT) Meter reading type code\\nMR TYPE TEXT (TEXT) Meter Reading type description\\nMR category (TEXT) Meter reading category\\nISTABLART_TXT (TEXT) Actual reading type description (SAP)\\nLOGIKZW (TEXT) Logic indicator\\nKENNZIFF (TEXT) Identification number\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\n\\n# Table: eablg\\n## column_name (type) description\\nMeter Reading (MR) Doc. No. (TEXT) Meter Reading Document Number\\nInstallation (TEXT) Installation identifier\\nMeter Reading reason (INTEGER) Meter reading reason code\\nMR Reason - Text (TEXT) Meter reading reason description\\nScheduled MR Date (TEXT) Scheduled meter reading date\\nMeter Reading unit (TEXT) Meter reading unit\\nMeter Reading (MR) Doc. No..1 (INTEGER) Secondary/duplicate Meter Reading Document Number\\n\\n# Table: eanl\\n## column_name (type) description\\nInstallation (TEXT) Installation identifier\\nInstallation type (TEXT) Type of installation\\nRecord created on (TEXT) Record creation date\\nObject changed on (TEXT) Object modification date\\nSPARTE_TEXT (TEXT) Division/sector description\\nAKLASSE (TEXT) Customer class code\\nAKLASSE_TEXT (TEXT) Customer class description\\nTARIFTYP (TEXT) Tariff type code\\nTARIFTYP_TEXT (TEXT) Tariff type description\\nBRANCHE (TEXT) Industry/sector code\\nBRANCHE_TEXT (TEXT) Industry/sector description\\nABLEINH (TEXT) Reading unit identifier\\nME_MA_ID (TEXT) Meter/Measuring point ID\\nHAUS (TEXT) House identifier\\n\\n# Table: process_rules\\n## column_name (type) description\\nprocess_rule_id (TEXT) PRIMARY KEY - Process rule identifier\\nprocess_rule (TEXT) NOT NULL - Process rule text/description"}', 'id': 'lc_c123aee9-9a5f-407a-b1df-7cdbd6fa9039'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_njqGlVct5hQpibq7JQ44fQOP)
+ Call ID: call_njqGlVct5hQpibq7JQ44fQOP
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09A_temp;
+  run_sqlite_query (call_U7unPSDczch50EwHuD7Mf8MO)
+ Call ID: call_U7unPSDczch50EwHuD7Mf8MO
+  Args:
+    sqlite_command: CREATE TABLE J09A_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09A%';
+  run_sqlite_query (call_RoFwMc3hu1flxy7wloSxvnNn)
+ Call ID: call_RoFwMc3hu1flxy7wloSxvnNn
+  Args:
+    sqlite_command: ALTER TABLE J09A_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+  run_sqlite_query (call_zqVVeQqqZpnIDfY1FoOl7WKQ)
+ Call ID: call_zqVVeQqqZpnIDfY1FoOl7WKQ
+  Args:
+    sqlite_command: SELECT DISTINCT "Record created on" FROM eabl WHERE "Record created on" IS NOT NULL LIMIT 10;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_e38c681c-c203-4127-8c32-d98f81162767'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_c69a0709-aac7-439f-a519-6745a7b24279'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_f5415a88-2fb7-4f98-8691-2457bc1ed960'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":10,"data":[{"Record created on":"2020-09-10T00:00:00"},{"Record created on":"2020-10-15T00:00:00"},{"Record created on":"2021-09-09T00:00:00"},{"Record created on":"2022-09-09T00:00:00"},{"Record created on":"2023-09-08T00:00:00"},{"Record created on":"2024-09-06T00:00:00"},{"Record created on":"2024-09-17T00:00:00"},{"Record created on":"2024-09-13T00:00:00"},{"Record created on":"2024-11-05T00:00:00"},{"Record created on":"2025-09-06T00:00:00"}]}', 'id': 'lc_ed855060-fa94-4cc4-9ff6-f8a0a0ebe04d'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_hWKCeSLuwbtljA8AIkBT5pKy)
+ Call ID: call_hWKCeSLuwbtljA8AIkBT5pKy
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = CASE
+  WHEN HOUSE_NUM1 = 0 THEN 'EVU'
+  WHEN HOUSE_NUM1 BETWEEN 500 AND 599 THEN 'EVU'
+  WHEN HOUSE_NUM1 BETWEEN 900 AND 999 THEN 'EVU'
+  WHEN CITY1 IN ('Wiblingwerde', 'Breckerfeld') OR CITY2 IN ('Wiblingwerde', 'Breckerfeld') THEN 'EVU'
+  ELSE NULL
+END;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":4900,"message":"Query executed successfully. 4900 row(s) affected."}', 'id': 'lc_1504e22f-ebf5-402b-94fb-ea667aa5ba53'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_TBd6qKnKuqjg03dTzcjS1LLY)
+ Call ID: call_TBd6qKnKuqjg03dTzcjS1LLY
+  Args:
+    sqlite_command: UPDATE J09A_temp
+SET ENTSCHEIDUNG = (
+  SELECT CASE
+           WHEN COUNT(*) < 3 THEN 'KSA'
+           ELSE 'EVU'
+         END
+  FROM J09A_temp AS t2
+  WHERE t2.HAUS = J09A_temp.HAUS
+)
+WHERE ENTSCHEIDUNG IS NULL;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":4889,"message":"Query executed successfully. 4889 row(s) affected."}', 'id': 'lc_7511687d-b840-49fa-82e0-b44399dae5d1'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_qyThtHot8aswL75OLtX2AGTQ)
+ Call ID: call_qyThtHot8aswL75OLtX2AGTQ
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09A_enriched;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_ed8c9379-73be-49aa-8c4d-1397eb3f054a'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_ryRVyATVUGBobIKsGE8jIPSd)
+ Call ID: call_ryRVyATVUGBobIKsGE8jIPSd
+  Args:
+    sqlite_command: CREATE TABLE J09A_enriched AS
+WITH base AS (
+  SELECT 
+    t.HAUS,
+    t.ANLAGE,
+    t.ABLEINH,
+    t.TOUR,
+    t.ME_MA_ID,
+    t.CITY1,
+    t.CITY2,
+    t.HOUSE_NUM1,
+    t.POST_CODE1,
+    t.EQUNR,
+    t.ENTSCHEIDUNG,
+    eablg."Meter Reading (MR) Doc. No.",
+    eablg.Installation
+  FROM J09A_temp t
+  LEFT JOIN eablg
+    ON eablg.Installation = t.ANLAGE
+),
+contact AS (
+  SELECT 
+    b.*, 
+    -- Prefer sales_master data when present
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.TITLE ELSE nm.TITLE END AS TITLE,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.FORENAME ELSE nm.FORENAME END AS FORENAME,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.SURNAME ELSE nm.SURNAME END AS SURNAME,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.STREET ELSE nm.STREET END AS STREET,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.STREETNO ELSE nm.STREETNO END AS STREETNO,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.POST_CODE1 ELSE nm.POST_CODE1 END AS POST_CODE1_CONTACT,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.CITY1 ELSE nm.CITY1 END AS CITY1_CONTACT,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.CITY2 ELSE nm.CITY2 END AS CITY2_CONTACT,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.EMAIL ELSE nm.EMAIL END AS EMAIL
+  FROM base b
+  LEFT JOIN net_master nm ON nm.EQUNR = b.EQUNR
+  LEFT JOIN sales_master sm ON sm.EQUNR = b.EQUNR
+)
+SELECT
+  "Meter Reading (MR) Doc. No.",
+  HAUS,
+  ANLAGE,
+  ME_MA_ID,
+  EQUNR,
+  HOUSE_NUM1,
+  ENTSCHEIDUNG,
+  TITLE,
+  FORENAME,
+  SURNAME,
+  STREET,
+  STREETNO,
+  POST_CODE1_CONTACT AS POST_CODE1,
+  CITY1_CONTACT AS CITY1,
+  CITY2_CONTACT AS CITY2,
+  EMAIL
+FROM contact;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_c49b117c-41ef-482e-ae42-6fb4c716ba6a'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_SxJdrH1l0nHAEVlexD0tVfuM)
+ Call ID: call_SxJdrH1l0nHAEVlexD0tVfuM
+  Args:
+    sqlite_command: WITH mandatory_eq AS (
+  SELECT EQUNR
+  FROM eabl
+  WHERE ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+    AND (substr("Record created on", 1, 4) = '2023' OR substr("Record created on", 1, 4) = '2024')
+  GROUP BY EQUNR
+  HAVING COUNT(DISTINCT substr("Record created on", 1, 4)) = 2
+)
+UPDATE J09A_enriched
+SET ENTSCHEIDUNG = 'MANDATORY_READING'
+WHERE EQUNR IN (SELECT EQUNR FROM mandatory_eq);
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_59096aec-784e-437d-9d40-ad16f7fb2073'}]
+================================== Ai Message ==================================
+Tool Calls:
+  prepare_csv (call_b8si3kUk9U8eyPggVLN35CuZ)
+ Call ID: call_b8si3kUk9U8eyPggVLN35CuZ
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09A_enriched
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+    filename: J09A_MANDATORY_READING
+  prepare_csv (call_IX7TVOJJCTKOjdtDw5343550)
+ Call ID: call_IX7TVOJJCTKOjdtDw5343550
+  Args:
+    sql_query: SELECT "Meter Reading (MR) Doc. No.", HAUS, ANLAGE, ME_MA_ID, EQUNR, HOUSE_NUM1, ENTSCHEIDUNG, TITLE, FORENAME, SURNAME, STREET, STREETNO, POST_CODE1, CITY1, CITY2, EMAIL
+FROM J09A_enriched
+WHERE ENTSCHEIDUNG <> 'MANDATORY_READING' OR ENTSCHEIDUNG IS NULL;
+    filename: J09A
+  run_sqlite_query (call_TQR7BnRY4EvSoCeClN8DIRhv)
+ Call ID: call_TQR7BnRY4EvSoCeClN8DIRhv
+  Args:
+    sqlite_command: SELECT COUNT(*) AS mandatory_count FROM J09A_enriched WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09A_MANDATORY_READING.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A_MANDATORY_READING.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A_MANDATORY_READING.csv","row_count":666,"message":"Successfully exported 666 rows to sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A_MANDATORY_READING.csv"}', 'id': 'lc_f02ae0db-2d17-4a0a-a7e0-d9f0c9fb17da'}]
+================================= Tool Message =================================
+Name: prepare_csv
+
+[{'type': 'text', 'text': '{"success":true,"filename":"J09A.csv","filepath":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A.csv","csv_path":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A.csv","row_count":20200,"message":"Successfully exported 20200 rows to sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A.csv"}', 'id': 'lc_3d974984-e00f-4541-abce-b2bfa523fce2'}]
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"row_count":1,"data":[{"mandatory_count":666}]}', 'id': 'lc_a5fff69c-5c3d-4fc3-85f0-a76f86584161'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_c5fOtPFAv9kyeHDsdV9iXrJK)
+ Call ID: call_c5fOtPFAv9kyeHDsdV9iXrJK
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A_MANDATORY_READING.csv
+    email: Please find attached the mandatory meter readings for tour J09A.
+
+Best regards,
+Meter Reading Automation
+    email_address: mandatory.reading@provider.com
+  send_mail (call_2o4mq2d50SqBEB3pbqs7tljQ)
+ Call ID: call_2o4mq2d50SqBEB3pbqs7tljQ
+  Args:
+    file_path: sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/J09A.csv
+    email: Please find attached the classified meter readings for tour J09A (excluding mandatory readings).
+
+Best regards,
+Meter Reading Automation
+    email_address: meter.readings@evu.com
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/process_metadata.csv"}', 'id': 'lc_9cdf81b7-e88f-4277-9c77-633009eabf13'}]
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09A_seed_4012/process_metadata.csv"}', 'id': 'lc_16dbe5c3-05a6-4cac-82ee-ce368e64467f'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_Zt3wBJVs82JWs03uhG2598NM)
+ Call ID: call_Zt3wBJVs82JWs03uhG2598NM
+  Args:
+    sqlite_command: DROP TABLE IF EXISTS J09A_temp;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":true,"affected_rows":-1,"message":"Query executed successfully. -1 row(s) affected."}', 'id': 'lc_e323385b-0338-4a4c-aed8-4567626816a2'}]
+================================== Ai Message ==================================
+
+All requested processing for tour J09A is complete. Here’s what was done:
+
+1. **Temporary table and base selection**
+   - Created `J09A_temp` with all rows from `decision_table` where `TOUR` starts with `J09A`.
+   - Added column `ENTSCHEIDUNG` to `J09A_temp`.
+
+2. **Classification per house**
+   - Applied overrides to set `ENTSCHEIDUNG = 'EVU'` for:
+     - `HOUSE_NUM1 = 0`
+     - `HOUSE_NUM1` between 500–599
+     - `HOUSE_NUM1` between 900–999
+     - Houses in areas `Wiblingwerde` or `Breckerfeld` (matching either `CITY1` or `CITY2`).
+   - For all remaining rows, counted `EQUNR` per `HAUS` and:
+     - Set `ENTSCHEIDUNG = 'KSA'` if that house has fewer than 3 equipment numbers.
+     - Set `ENTSCHEIDUNG = 'EVU'` otherwise.
+
+3. **Enrichment with EABLG and customer data**
+   - Built `J09A_enriched` by:
+     - LEFT JOINing `J09A_temp` with `eablg` on `Installation = ANLAGE` to get `"Meter Reading (MR) Doc. No."` and `Installation`.
+     - LEFT JOINing customer data from `net_master` and `sales_master` via `EQUNR`.
+     - Where both net and sales data exist, used **sales_master** fields and ignored (overwrote) net_master data.
+     - Where only net_master exists, kept the net_master fields.
+
+   `J09A_enriched` contains exactly the output columns you specified:
+   - `Meter Reading (MR) Doc. No.`
+   - `HAUS`
+   - `ANLAGE`
+   - `ME_MA_ID`
+   - `EQUNR`
+   - `HOUSE_NUM1`
+   - `ENTSCHEIDUNG`
+   - `TITLE`
+   - `FORENAME`
+   - `SURNAME`
+   - `STREET`
+   - `STREETNO`
+   - `POST_CODE1`
+   - `CITY1`
+   - `CITY2`
+   - `EMAIL`
+
+4. **MANDATORY_READING classification**
+   - In `eabl`, identified all `EQUNR` where:
+     - `ISTABLART_TXT = 'Maschinelle Schätzung - SAP'`, and
+     - There are records in **both** years 2023 **and** 2024 (based on the first 4 digits of `"Record created on"`).
+   - For all matching equipment numbers in `J09A_enriched`, set `ENTSCHEIDUNG = 'MANDATORY_READING'`.
+   - This produced **666** `MANDATORY_READING` records.
+
+5. **CSV exports and email dispatch**
+   - Exported all `MANDATORY_READING` rows to:
+     - `J09A_MANDATORY_READING.csv`
+     - Columns exactly as specified.
+   - Exported all remaining rows (where `ENTSCHEIDUNG` is not `MANDATORY_READING` or is NULL) to:
+     - `J09A.csv`
+     - Same column set.
+
+   - Sent:
+     - `J09A_MANDATORY_READING.csv` to **mandatory.reading@provider.com** with a brief cover text.
+     - `J09A.csv` to **meter.readings@evu.com** with a brief cover text.
+
+6. **Cleanup**
+   - Dropped the temporary table `J09A_temp` after processing.
+
+If you’d like, I can also keep (or drop) the intermediate `J09A_enriched` table, or adjust any of the classification rules for a rerun.

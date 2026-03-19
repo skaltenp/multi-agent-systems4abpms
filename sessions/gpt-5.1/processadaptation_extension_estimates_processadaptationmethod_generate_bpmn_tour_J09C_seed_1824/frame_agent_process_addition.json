@@ -1,0 +1,277 @@
+{
+  "messages": [
+    {
+      "lc": 1,
+      "type": "constructor",
+      "id": [
+        "langchain",
+        "schema",
+        "messages",
+        "HumanMessage"
+      ],
+      "kwargs": {
+        "content": "Use the generate_process_rule_from_bpmn tool to generate a process rule from the following BPMN file: bpmn/J09C_extension_estimates.bpmn and store it in the database as J09C",
+        "type": "human",
+        "id": "a0b325e4-e328-4749-b402-05bb73e0b59a"
+      }
+    },
+    {
+      "lc": 1,
+      "type": "constructor",
+      "id": [
+        "langchain",
+        "schema",
+        "messages",
+        "AIMessage"
+      ],
+      "kwargs": {
+        "content": "",
+        "additional_kwargs": {
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 473,
+            "prompt_tokens": 530,
+            "total_tokens": 1003,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 427,
+              "rejected_prediction_tokens": 0
+            },
+            "prompt_tokens_details": {
+              "audio_tokens": 0,
+              "cached_tokens": 0
+            }
+          },
+          "model_provider": "openai",
+          "model_name": "gpt-5.1-2025-11-13",
+          "system_fingerprint": null,
+          "id": "chatcmpl-DKRmtGBRLfDaY9g7N1surD8WHGY70",
+          "service_tier": "default",
+          "finish_reason": "tool_calls",
+          "logprobs": null
+        },
+        "type": "ai",
+        "id": "lc_run--019cfcad-62cf-78d3-ad6b-dfa7b0ca8e24-0",
+        "tool_calls": [
+          {
+            "name": "generate_process_rule_from_bpmn",
+            "args": {
+              "bpmn_path": "bpmn/J09C_extension_estimates.bpmn",
+              "process_rule_id": "J09C"
+            },
+            "id": "call_jVSJBbOqiXVU3RTTzz8iLmWS",
+            "type": "tool_call"
+          }
+        ],
+        "usage_metadata": {
+          "input_tokens": 530,
+          "output_tokens": 473,
+          "total_tokens": 1003,
+          "input_token_details": {
+            "audio": 0,
+            "cache_read": 0
+          },
+          "output_token_details": {
+            "audio": 0,
+            "reasoning": 427
+          }
+        },
+        "invalid_tool_calls": []
+      }
+    },
+    {
+      "lc": 1,
+      "type": "constructor",
+      "id": [
+        "langchain",
+        "schema",
+        "messages",
+        "ToolMessage"
+      ],
+      "kwargs": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"success\":true,\"process_rule_id\":\"J09C\",\"process_rule\":\"1. Start the process.\\n\\n2. Copy the decision table into a new temporary table `J09C_temp`, including only rows where the tour identifier starts with `\\\"J09C\\\"`.\\n\\n3. Add a text column `ENTSCHEIDUNG` to `J09C_temp`, initialized as null.\\n\\n4. Classify meter reading type in `J09C_temp` by setting `ENTSCHEIDUNG` as follows, in this order:\\n\\n   - For each `HAUS`, count distinct `EQUNR`:\\n     - If a `HAUS` has fewer than 3 `EQUNR`, set `ENTSCHEIDUNG = \\\"KSA\\\"` for all rows of that `HAUS`.\\n     - Else set `ENTSCHEIDUNG = \\\"EVU\\\"` for all rows of that `HAUS`.\\n   - Then override `ENTSCHEIDUNG` to `\\\"EVU\\\"` for any row where:\\n     - `HOUSE_NUM1 = 0`, or\\n     - `HOUSE_NUM1` is between 500 and 599 (inclusive), or\\n     - `HOUSE_NUM1` is between 900 and 999 (inclusive), or\\n     - the address area field equals `\\\"Wiblingwerde\\\"` or `\\\"Breckerfeld\\\"`.\\n\\n5. Join `J09C_temp` with the `EABLG` table using `INSTALLATION` as the join key, producing an updated working table that contains all needed columns from both.\\n\\n6. Join the working table with `SALES_MASTER` and `NET_MASTER` using `EQUNR` as the join key (JOIN table with `NET_MASTER` and `SALES_MASTER` using `EQUNR`), keeping the customer data fields from both source tables.\\n\\n7. Compare customer sales master data and net master data: for each row in the working table, determine whether the corresponding customer data from `SALES_MASTER` is present (not empty) and how it differs from the customer data from `NET_MASTER`.\\n\\n8. For each row in the working table, choose which customer data to use based on the comparison result:\\n\\n   If sales customer data (from `SALES_MASTER`) for that row is not empty:\\n   - Use the `SALES_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `SALES_MASTER`.\\n\\n   Else:\\n   - Use the `NET_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `NET_MASTER`.\\n\\n9. Identify households with mandatory meter reading using the `EABL` table, and update `ENTSCHEIDUNG`:\\n\\n   - For each `EQUNR` present in the working table, query `EABL` and check:\\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \\\"Maschinelle Schätzung - SAP\\\"`, and record creation year = 2024.\\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \\\"Maschinelle Schätzung - SAP\\\"`, and record creation year = 2023.\\n   - If both conditions are true, set `ENTSCHEIDUNG = \\\"MANDATORY_READING\\\"` for all rows with that `EQUNR` in the working table (overriding any previous value).\\n\\n10. Export all rows with `ENTSCHEIDUNG = \\\"MANDATORY_READING\\\"` from the working (final) table to a CSV file:\\n    - File name: `J09C_MANDATORY_READING.csv`.\\n    - Include exactly these columns:  \\n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\\n\\n11. Send the `J09C_MANDATORY_READING.csv` file to the internal team by email:\\n    - Email address: `mandatory.reading@provider.com`.\\n    - Attach the file located at: `<file path for J09C_MANDATORY_READING.csv here>`.\\n\\n12. Export all remaining rows (rows where `ENTSCHEIDUNG != \\\"MANDATORY_READING\\\"`) from the working table to a CSV file:\\n    - File name: `J09C.csv`.\\n    - Include exactly these columns:  \\n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\\n\\n13. Send the `J09C.csv` file to the EVU by email:\\n    - Email address: `meter.readings@evu.com`.\\n    - Attach the file located at: `<path_to_exported_csv_file>` (the path of `J09C.csv`).\\n\\n14. Delete the temporary table `J09C_temp` and any other temporary tables created in this process.\\n\\n15. End the process.\"}",
+            "id": "lc_ac7f1a9b-41bc-443a-8119-e4b7a7883166"
+          }
+        ],
+        "type": "tool",
+        "name": "generate_process_rule_from_bpmn",
+        "id": "ac8438e4-2b2e-4a45-8b7b-2cf7ff1bdb8a",
+        "tool_call_id": "call_jVSJBbOqiXVU3RTTzz8iLmWS",
+        "artifact": {
+          "structured_content": {
+            "success": true,
+            "process_rule_id": "J09C",
+            "process_rule": "1. Start the process.\n\n2. Copy the decision table into a new temporary table `J09C_temp`, including only rows where the tour identifier starts with `\"J09C\"`.\n\n3. Add a text column `ENTSCHEIDUNG` to `J09C_temp`, initialized as null.\n\n4. Classify meter reading type in `J09C_temp` by setting `ENTSCHEIDUNG` as follows, in this order:\n\n   - For each `HAUS`, count distinct `EQUNR`:\n     - If a `HAUS` has fewer than 3 `EQUNR`, set `ENTSCHEIDUNG = \"KSA\"` for all rows of that `HAUS`.\n     - Else set `ENTSCHEIDUNG = \"EVU\"` for all rows of that `HAUS`.\n   - Then override `ENTSCHEIDUNG` to `\"EVU\"` for any row where:\n     - `HOUSE_NUM1 = 0`, or\n     - `HOUSE_NUM1` is between 500 and 599 (inclusive), or\n     - `HOUSE_NUM1` is between 900 and 999 (inclusive), or\n     - the address area field equals `\"Wiblingwerde\"` or `\"Breckerfeld\"`.\n\n5. Join `J09C_temp` with the `EABLG` table using `INSTALLATION` as the join key, producing an updated working table that contains all needed columns from both.\n\n6. Join the working table with `SALES_MASTER` and `NET_MASTER` using `EQUNR` as the join key (JOIN table with `NET_MASTER` and `SALES_MASTER` using `EQUNR`), keeping the customer data fields from both source tables.\n\n7. Compare customer sales master data and net master data: for each row in the working table, determine whether the corresponding customer data from `SALES_MASTER` is present (not empty) and how it differs from the customer data from `NET_MASTER`.\n\n8. For each row in the working table, choose which customer data to use based on the comparison result:\n\n   If sales customer data (from `SALES_MASTER`) for that row is not empty:\n   - Use the `SALES_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `SALES_MASTER`.\n\n   Else:\n   - Use the `NET_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `NET_MASTER`.\n\n9. Identify households with mandatory meter reading using the `EABL` table, and update `ENTSCHEIDUNG`:\n\n   - For each `EQUNR` present in the working table, query `EABL` and check:\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \"Maschinelle Schätzung - SAP\"`, and record creation year = 2024.\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \"Maschinelle Schätzung - SAP\"`, and record creation year = 2023.\n   - If both conditions are true, set `ENTSCHEIDUNG = \"MANDATORY_READING\"` for all rows with that `EQUNR` in the working table (overriding any previous value).\n\n10. Export all rows with `ENTSCHEIDUNG = \"MANDATORY_READING\"` from the working (final) table to a CSV file:\n    - File name: `J09C_MANDATORY_READING.csv`.\n    - Include exactly these columns:  \n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\n\n11. Send the `J09C_MANDATORY_READING.csv` file to the internal team by email:\n    - Email address: `mandatory.reading@provider.com`.\n    - Attach the file located at: `<file path for J09C_MANDATORY_READING.csv here>`.\n\n12. Export all remaining rows (rows where `ENTSCHEIDUNG != \"MANDATORY_READING\"`) from the working table to a CSV file:\n    - File name: `J09C.csv`.\n    - Include exactly these columns:  \n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\n\n13. Send the `J09C.csv` file to the EVU by email:\n    - Email address: `meter.readings@evu.com`.\n    - Attach the file located at: `<path_to_exported_csv_file>` (the path of `J09C.csv`).\n\n14. Delete the temporary table `J09C_temp` and any other temporary tables created in this process.\n\n15. End the process."
+          }
+        },
+        "status": "success"
+      }
+    },
+    {
+      "lc": 1,
+      "type": "constructor",
+      "id": [
+        "langchain",
+        "schema",
+        "messages",
+        "AIMessage"
+      ],
+      "kwargs": {
+        "content": "",
+        "additional_kwargs": {
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 1217,
+            "prompt_tokens": 1793,
+            "total_tokens": 3010,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0,
+              "rejected_prediction_tokens": 0
+            },
+            "prompt_tokens_details": {
+              "audio_tokens": 0,
+              "cached_tokens": 0
+            }
+          },
+          "model_provider": "openai",
+          "model_name": "gpt-5.1-2025-11-13",
+          "system_fingerprint": null,
+          "id": "chatcmpl-DKRonNp4KFPLSM5VTlD1P8Q7bi0Zr",
+          "service_tier": "default",
+          "finish_reason": "tool_calls",
+          "logprobs": null
+        },
+        "type": "ai",
+        "id": "lc_run--019cfcaf-309b-7be1-8f6c-bd86c988a920-0",
+        "tool_calls": [
+          {
+            "name": "add_process_rule",
+            "args": {
+              "process_rule_id": "J09C",
+              "process_rule": "1. Start the process.\n\n2. Copy the decision table into a new temporary table `J09C_temp`, including only rows where the tour identifier starts with `\"J09C\"`.\n\n3. Add a text column `ENTSCHEIDUNG` to `J09C_temp`, initialized as null.\n\n4. Classify meter reading type in `J09C_temp` by setting `ENTSCHEIDUNG` as follows, in this order:\n\n   - For each `HAUS`, count distinct `EQUNR`:\n     - If a `HAUS` has fewer than 3 `EQUNR`, set `ENTSCHEIDUNG = \"KSA\"` for all rows of that `HAUS`.\n     - Else set `ENTSCHEIDUNG = \"EVU\"` for all rows of that `HAUS`.\n   - Then override `ENTSCHEIDUNG` to `\"EVU\"` for any row where:\n     - `HOUSE_NUM1 = 0`, or\n     - `HOUSE_NUM1` is between 500 and 599 (inclusive), or\n     - `HOUSE_NUM1` is between 900 and 999 (inclusive), or\n     - the address area field equals `\"Wiblingwerde\"` or `\"Breckerfeld\"`.\n\n5. Join `J09C_temp` with the `EABLG` table using `INSTALLATION` as the join key, producing an updated working table that contains all needed columns from both.\n\n6. Join the working table with `SALES_MASTER` and `NET_MASTER` using `EQUNR` as the join key (JOIN table with `NET_MASTER` and `SALES_MASTER` using `EQUNR`), keeping the customer data fields from both source tables.\n\n7. Compare customer sales master data and net master data: for each row in the working table, determine whether the corresponding customer data from `SALES_MASTER` is present (not empty) and how it differs from the customer data from `NET_MASTER`.\n\n8. For each row in the working table, choose which customer data to use based on the comparison result:\n\n   If sales customer data (from `SALES_MASTER`) for that row is not empty:\n   - Use the `SALES_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `SALES_MASTER`.\n\n   Else:\n   - Use the `NET_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `NET_MASTER`.\n\n9. Identify households with mandatory meter reading using the `EABL` table, and update `ENTSCHEIDUNG`:\n\n   - For each `EQUNR` present in the working table, query `EABL` and check:\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \"Maschinelle Schätzung - SAP\"`, and record creation year = 2024.\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \"Maschinelle Schätzung - SAP\"`, and record creation year = 2023.\n   - If both conditions are true, set `ENTSCHEIDUNG = \"MANDATORY_READING\"` for all rows with that `EQUNR` in the working table (overriding any previous value).\n\n10. Export all rows with `ENTSCHEIDUNG = \"MANDATORY_READING\"` from the working (final) table to a CSV file:\n    - File name: `J09C_MANDATORY_READING.csv`.\n    - Include exactly these columns:  \n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\n\n11. Send the `J09C_MANDATORY_READING.csv` file to the internal team by email:\n    - Email address: `mandatory.reading@provider.com`.\n    - Attach the file located at: `<file path for J09C_MANDATORY_READING.csv here>`.\n\n12. Export all remaining rows (rows where `ENTSCHEIDUNG != \"MANDATORY_READING\"`) from the working table to a CSV file:\n    - File name: `J09C.csv`.\n    - Include exactly these columns:  \n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\n\n13. Send the `J09C.csv` file to the EVU by email:\n    - Email address: `meter.readings@evu.com`.\n    - Attach the file located at: `<path_to_exported_csv_file>` (the path of `J09C.csv`).\n\n14. Delete the temporary table `J09C_temp` and any other temporary tables created in this process.\n\n15. End the process."
+            },
+            "id": "call_wIvGAW1WiGTrj1U0szwKwgMo",
+            "type": "tool_call"
+          }
+        ],
+        "usage_metadata": {
+          "input_tokens": 1793,
+          "output_tokens": 1217,
+          "total_tokens": 3010,
+          "input_token_details": {
+            "audio": 0,
+            "cache_read": 0
+          },
+          "output_token_details": {
+            "audio": 0,
+            "reasoning": 0
+          }
+        },
+        "invalid_tool_calls": []
+      }
+    },
+    {
+      "lc": 1,
+      "type": "constructor",
+      "id": [
+        "langchain",
+        "schema",
+        "messages",
+        "ToolMessage"
+      ],
+      "kwargs": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"success\":true,\"process_rule_id\":\"J09C\",\"message\":\"Process rule added successfully\"}",
+            "id": "lc_ac1ba863-f84a-4b63-a710-43064d06f74a"
+          }
+        ],
+        "type": "tool",
+        "name": "add_process_rule",
+        "id": "0ea1848c-44af-4d59-8470-9b259d996d44",
+        "tool_call_id": "call_wIvGAW1WiGTrj1U0szwKwgMo",
+        "artifact": {
+          "structured_content": {
+            "success": true,
+            "process_rule_id": "J09C",
+            "message": "Process rule added successfully"
+          }
+        },
+        "status": "success"
+      }
+    },
+    {
+      "lc": 1,
+      "type": "constructor",
+      "id": [
+        "langchain",
+        "schema",
+        "messages",
+        "AIMessage"
+      ],
+      "kwargs": {
+        "content": "The process rule has been generated from `bpmn/J09C_extension_estimates.bpmn` and stored in the database under the ID `J09C`.\n\nHere is the stored rule for your reference:\n\n1. Start the process.\n\n2. Copy the decision table into a new temporary table `J09C_temp`, including only rows where the tour identifier starts with `\"J09C\"`.\n\n3. Add a text column `ENTSCHEIDUNG` to `J09C_temp`, initialized as null.\n\n4. Classify meter reading type in `J09C_temp` by setting `ENTSCHEIDUNG` as follows, in this order:\n\n   - For each `HAUS`, count distinct `EQUNR`:\n     - If a `HAUS` has fewer than 3 `EQUNR`, set `ENTSCHEIDUNG = \"KSA\"` for all rows of that `HAUS`.\n     - Else set `ENTSCHEIDUNG = \"EVU\"` for all rows of that `HAUS`.\n   - Then override `ENTSCHEIDUNG` to `\"EVU\"` for any row where:\n     - `HOUSE_NUM1 = 0`, or\n     - `HOUSE_NUM1` is between 500 and 599 (inclusive), or\n     - `HOUSE_NUM1` is between 900 and 999 (inclusive), or\n     - the address area field equals `\"Wiblingwerde\"` or `\"Breckerfeld\"`.\n\n5. Join `J09C_temp` with the `EABLG` table using `INSTALLATION` as the join key, producing an updated working table that contains all needed columns from both.\n\n6. Join the working table with `SALES_MASTER` and `NET_MASTER` using `EQUNR` as the join key (JOIN table with `NET_MASTER` and `SALES_MASTER` using `EQUNR`), keeping the customer data fields from both source tables.\n\n7. Compare customer sales master data and net master data: for each row in the working table, determine whether the corresponding customer data from `SALES_MASTER` is present (not empty) and how it differs from the customer data from `NET_MASTER`.\n\n8. For each row in the working table, choose which customer data to use based on the comparison result:\n\n   If sales customer data (from `SALES_MASTER`) for that row is not empty:\n   - Use the `SALES_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `SALES_MASTER`.\n\n   Else:\n   - Use the `NET_MASTER` customer table entries as the authoritative customer data for that row; populate all customer-related fields from `NET_MASTER`.\n\n9. Identify households with mandatory meter reading using the `EABL` table, and update `ENTSCHEIDUNG`:\n\n   - For each `EQUNR` present in the working table, query `EABL` and check:\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \"Maschinelle Schätzung - SAP\"`, and record creation year = 2024.\n     - There exists at least one record with `EQUNR` = that value, `ISTABLART_TXT = \"Maschinelle Schätzung - SAP\"`, and record creation year = 2023.\n   - If both conditions are true, set `ENTSCHEIDUNG = \"MANDATORY_READING\"` for all rows with that `EQUNR` in the working table (overriding any previous value).\n\n10. Export all rows with `ENTSCHEIDUNG = \"MANDATORY_READING\"` from the working (final) table to a CSV file:\n    - File name: `J09C_MANDATORY_READING.csv`.\n    - Include exactly these columns:  \n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\n\n11. Send the `J09C_MANDATORY_READING.csv` file to the internal team by email:\n    - Email address: `mandatory.reading@provider.com`.\n    - Attach the file located at: `<file path for J09C_MANDATORY_READING.csv here>`.\n\n12. Export all remaining rows (rows where `ENTSCHEIDUNG != \"MANDATORY_READING\"`) from the working table to a CSV file:\n    - File name: `J09C.csv`.\n    - Include exactly these columns:  \n      `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.\n\n13. Send the `J09C.csv` file to the EVU by email:\n    - Email address: `meter.readings@evu.com`.\n    - Attach the file located at: `<path_to_exported_csv_file>` (the path of `J09C.csv`).\n\n14. Delete the temporary table `J09C_temp` and any other temporary tables created in this process.\n\n15. End the process.\n\nIf you’d like, I can now trigger execution of this process by running process ID `J09C`.",
+        "additional_kwargs": {
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 1177,
+            "prompt_tokens": 3042,
+            "total_tokens": 4219,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0,
+              "rejected_prediction_tokens": 0
+            },
+            "prompt_tokens_details": {
+              "audio_tokens": 0,
+              "cached_tokens": 2944
+            }
+          },
+          "model_provider": "openai",
+          "model_name": "gpt-5.1-2025-11-13",
+          "system_fingerprint": null,
+          "id": "chatcmpl-DKRoycPihZgafRDqxARdvKU0VRZOQ",
+          "service_tier": "default",
+          "finish_reason": "stop",
+          "logprobs": null
+        },
+        "type": "ai",
+        "id": "lc_run--019cfcaf-59c6-7cb0-93b5-3a5160afe309-0",
+        "usage_metadata": {
+          "input_tokens": 3042,
+          "output_tokens": 1177,
+          "total_tokens": 4219,
+          "input_token_details": {
+            "audio": 0,
+            "cache_read": 2944
+          },
+          "output_token_details": {
+            "audio": 0,
+            "reasoning": 0
+          }
+        },
+        "tool_calls": [],
+        "invalid_tool_calls": []
+      }
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5365,
+    "output_tokens": 2867,
+    "total_tokens": 8232
+  }
+}

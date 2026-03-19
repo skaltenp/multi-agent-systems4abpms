@@ -1,0 +1,173 @@
+================================ Human Message =================================
+
+I need you to process the meter readings for tour J09C. Take all entries from the decision_table where the TOUR starts with "J09C" and put them into a temporary table called J09C_temp. Then add a new column called ENTSCHEIDUNG to that table.
+
+For classifying each house: count how many equipment numbers (EQUNR) belong to each house (HAUS). If a house has fewer than 3 equipment numbers, set its ENTSCHEIDUNG to "KSA". Otherwise, set it to "EVU". There are three additional overrides that always result in "EVU": houses where HOUSE_NUM1 is 0, houses where HOUSE_NUM1 is between 500 and 599, and houses where HOUSE_NUM1 is between 900 and 999.
+
+Next, enrich the data by joining it with the EABLG table using the INSTALLATION field, and also pull in customer contact details from both the net_master and sales_master tables using the EQUNR field. When both net and sales data exist for a customer, prefer the sales data and leave the net data fields empty. If only net data exists, keep that.
+
+Export the final result as a CSV file named "J09C" with these columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.
+
+Send the CSV to the EVU team at meter.readings@evu.com. After that, delete the temporary table.
+
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_wClSvy6MT32c4NpFHt72mPU2)
+ Call ID: call_wClSvy6MT32c4NpFHt72mPU2
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":false,"error":"Error no database connection","message":"Error no database connection"}', 'id': 'lc_91c9569f-fe73-4ea3-8ce1-521e4c822ec3'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_XSN2uXFdzMjyGBvm7DhL0W7b)
+ Call ID: call_XSN2uXFdzMjyGBvm7DhL0W7b
+  Args:
+    sqlite_command: SELECT 1
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"Error no database connection","message":"Error no database connection"}', 'id': 'lc_411521a0-93dc-433b-b339-5c8c802c7b3b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_JHo256CImRDxLqQy5uoaN6Qi)
+ Call ID: call_JHo256CImRDxLqQy5uoaN6Qi
+  Args:
+    file_path: 
+    email: Database connection error while processing tour J09C meter readings. Tools get_db_schema and run_sqlite_query both returned: "Error no database connection". Unable to create temp table J09C_temp, classify ENTSCHEIDUNG, join with EABLG/net_master/sales_master, or export/send CSV. Please investigate SQLite database connectivity for the decision_table and related tables.
+    email_address: support@company.com
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_900_values_processadaptationmethod_classic_tour_J09C_seed_42_exception_handling_db_error/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_900_values_processadaptationmethod_classic_tour_J09C_seed_42_exception_handling_db_error/process_metadata.csv"}', 'id': 'lc_9ea4805f-4784-448c-9e05-83d6bcda3f8e'}]
+================================== Ai Message ==================================
+
+There is currently a database connectivity issue that prevents me from executing any of the required SQL operations.
+
+Details:
+- Both `get_db_schema` and `run_sqlite_query` return: `Error no database connection`.
+- Because of this, I cannot:
+  - Create the temporary table `J09C_temp`
+  - Classify `ENTSCHEIDUNG` values
+  - Join with `EABLG`, `net_master`, and `sales_master`
+  - Export the final result to CSV
+  - Or delete the temporary table afterward
+
+I have escalated the issue to support by sending an email to `support@company.com` with a description of the failure and the steps I attempted, so they can investigate and restore SQLite connectivity.
+
+Once the database connection is working, the process to run (for your reference or for a DBA to execute) would be roughly:
+
+1. Create temp table and copy data for the tour:
+   ```sql
+   DROP TABLE IF EXISTS J09C_temp;
+
+   CREATE TABLE J09C_temp AS
+   SELECT *
+   FROM decision_table
+   WHERE TOUR LIKE 'J09C%';
+   ```
+
+2. Add `ENTSCHEIDUNG` column:
+   ```sql
+   ALTER TABLE J09C_temp
+   ADD COLUMN ENTSCHEIDUNG TEXT;
+   ```
+
+3. Classify each house based on EQUNR count and overrides:
+   ```sql
+   -- Base decision by equipment count per house
+   WITH house_counts AS (
+       SELECT
+           HAUS,
+           COUNT(DISTINCT EQUNR) AS eq_count
+       FROM J09C_temp
+       GROUP BY HAUS
+   )
+   UPDATE J09C_temp
+   SET ENTSCHEIDUNG = CASE
+       WHEN hc.eq_count < 3 THEN 'KSA'
+       ELSE 'EVU'
+   END
+   FROM house_counts hc
+   WHERE J09C_temp.HAUS = hc.HAUS;
+
+   -- Overrides to EVU (HOUSE_NUM1 = 0, 500–599, 900–999)
+   UPDATE J09C_temp
+   SET ENTSCHEIDUNG = 'EVU'
+   WHERE HOUSE_NUM1 = 0
+      OR (HOUSE_NUM1 BETWEEN 500 AND 599)
+      OR (HOUSE_NUM1 BETWEEN 900 AND 999);
+   ```
+
+4. Enrich with EABLG and customer data (adjust column names as needed to your schema):
+
+   ```sql
+   -- Example assumes:
+   -- J09C_temp.ANLAGE        = INSTALLATION in EABLG
+   -- net_master / sales_master share keys by EQUNR
+   DROP TABLE IF EXISTS J09C_enriched;
+
+   CREATE TABLE J09C_enriched AS
+   WITH joined AS (
+       SELECT
+           j.*,
+           e.*,
+           n.TITLE      AS n_TITLE,
+           n.FORENAME   AS n_FORENAME,
+           n.SURNAME    AS n_SURNAME,
+           n.STREET     AS n_STREET,
+           n.STREETNO   AS n_STREETNO,
+           n.POST_CODE1 AS n_POST_CODE1,
+           n.CITY1      AS n_CITY1,
+           n.CITY2      AS n_CITY2,
+           n.EMAIL      AS n_EMAIL,
+           s.TITLE      AS s_TITLE,
+           s.FORENAME   AS s_FORENAME,
+           s.SURNAME    AS s_SURNAME,
+           s.STREET     AS s_STREET,
+           s.STREETNO   AS s_STREETNO,
+           s.POST_CODE1 AS s_POST_CODE1,
+           s.CITY1      AS s_CITY1,
+           s.CITY2      AS s_CITY2,
+           s.EMAIL      AS s_EMAIL
+       FROM J09C_temp j
+       LEFT JOIN EABLG       e ON j.ANLAGE = e.INSTALLATION
+       LEFT JOIN net_master  n ON j.EQUNR = n.EQUNR
+       LEFT JOIN sales_master s ON j.EQUNR = s.EQUNR
+   )
+   SELECT
+       "Meter Reading (MR) Doc. No."  AS "Meter Reading (MR) Doc. No.",
+       HAUS,
+       ANLAGE,
+       ME_MA_ID,
+       EQUNR,
+       HOUSE_NUM1,
+       ENTSCHEIDUNG,
+       -- Prefer sales_* fields; if they exist, output them and null net_*;
+       -- if not, output net_*.
+       CASE WHEN s_TITLE    IS NOT NULL THEN s_TITLE    ELSE n_TITLE    END AS TITLE,
+       CASE WHEN s_FORENAME IS NOT NULL THEN s_FORENAME ELSE n_FORENAME END AS FORENAME,
+       CASE WHEN s_SURNAME  IS NOT NULL THEN s_SURNAME  ELSE n_SURNAME  END AS SURNAME,
+       CASE WHEN s_STREET   IS NOT NULL THEN s_STREET   ELSE n_STREET   END AS STREET,
+       CASE WHEN s_STREETNO IS NOT NULL THEN s_STREETNO ELSE n_STREETNO END AS STREETNO,
+       CASE WHEN s_POST_CODE1 IS NOT NULL THEN s_POST_CODE1 ELSE n_POST_CODE1 END AS POST_CODE1,
+       CASE WHEN s_CITY1    IS NOT NULL THEN s_CITY1    ELSE n_CITY1    END AS CITY1,
+       CASE WHEN s_CITY2    IS NOT NULL THEN s_CITY2    ELSE n_CITY2    END AS CITY2,
+       CASE WHEN s_EMAIL    IS NOT NULL THEN s_EMAIL    ELSE n_EMAIL    END AS EMAIL
+   FROM joined;
+   ```
+
+5. Export to CSV named `J09C` and send to `meter.readings@evu.com`:
+   ```sql
+   -- This part would be done via the provided tools once the DB is available:
+   -- prepare_csv(sql_query='SELECT ... FROM J09C_enriched', filename='J09C')
+   -- send_mail(file_path='<returned_path>', email='Attached J09C meter readings export', email_address='meter.readings@evu.com');
+   ```
+
+6. Drop the temporary table when finished:
+   ```sql
+   DROP TABLE IF EXISTS J09C_temp;
+   ```
+
+Once support resolves the database connection problem, I can rerun this process end-to-end (including CSV export and email) exactly as you specified.

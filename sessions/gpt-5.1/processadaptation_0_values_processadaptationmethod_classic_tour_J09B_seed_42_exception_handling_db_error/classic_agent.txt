@@ -1,0 +1,200 @@
+================================ Human Message =================================
+
+I need you to process the meter readings for tour J09B. Take all entries from the decision_table where the TOUR starts with "J09B" and put them into a temporary table called J09B_temp. Then add a new column called ENTSCHEIDUNG to that table.
+
+For classifying each house: count how many equipment numbers (EQUNR) belong to each house (HAUS). If a house has fewer than 3 equipment numbers, set its ENTSCHEIDUNG to "KSA". Otherwise, set it to "EVU". Additionally, any house where HOUSE_NUM1 is 0 should always be set to "EVU" regardless of the count.
+
+Next, enrich the data by joining it with the EABLG table using the INSTALLATION field, and also pull in customer contact details from both the net_master and sales_master tables using the EQUNR field. When both net and sales data exist for a customer, prefer the sales data and leave the net data fields empty. If only net data exists, keep that.
+
+Export the final result as a CSV file named "J09B" with these columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.
+
+Send the CSV to the EVU team at meter.readings@evu.com. After that, delete the temporary table.
+
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_4Vgbzx5gmS7obTykTFNZYiK2)
+ Call ID: call_4Vgbzx5gmS7obTykTFNZYiK2
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":false,"error":"Error no database connection","message":"Error no database connection"}', 'id': 'lc_aec462d0-5847-4ad7-a04d-2aa64ec3293b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_3E8T8HQj7kCyvsYtPdwnij66)
+ Call ID: call_3E8T8HQj7kCyvsYtPdwnij66
+  Args:
+    sqlite_command: SELECT name FROM sqlite_master WHERE type='table' LIMIT 5;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"Error no database connection","message":"Error no database connection"}', 'id': 'lc_98b53571-8307-4eea-ab16-2636beb4d6d9'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_7kfWuWrKe0UQkTlhGseKw7gV)
+ Call ID: call_7kfWuWrKe0UQkTlhGseKw7gV
+  Args:
+    file_path: 
+    email: Subject: URGENT: DB connection failure during J09B meter reading processing
+
+Hello Support,
+
+While executing an automated process to prepare and send the J09B tour meter-reading CSV, all attempts to access the SQLite database failed with the error:
+
+"Error no database connection"
+
+Failed tools/operations:
+- get_db_schema
+- run_sqlite_query (simple `SELECT name FROM sqlite_master WHERE type='table' LIMIT 5;`)
+
+Because of this, I cannot:
+- Read from decision_table
+- Create the temporary table J09B_temp
+- Join with EABLG, net_master, and sales_master
+- Prepare the final J09B CSV for the EVU team
+
+Please investigate and restore the SQLite database connection. Once resolved, the process to rerun is:
+1) Create J09B_temp from decision_table where TOUR LIKE 'J09B%'.
+2) Add ENTSCHEIDUNG and populate it based on per-HAUS EQUNR counts, with HOUSE_NUM1 = 0 forced to 'EVU'.
+3) Enrich with EABLG (via INSTALLATION) and with net_master/sales_master (via EQUNR, preferring sales data over net where both exist).
+4) Export to CSV named "J09B" with the specified columns.
+5) Email the CSV to meter.readings@evu.com and drop J09B_temp.
+
+Environment: process execution via the automated assistant, using the SQLite-backed decision_table.
+
+Please let me know once the DB connection is restored so the process can be completed.
+
+Best regards,
+Process Execution Agent
+    email_address: support@company.com
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_0_values_processadaptationmethod_classic_tour_J09B_seed_42_exception_handling_db_error/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_0_values_processadaptationmethod_classic_tour_J09B_seed_42_exception_handling_db_error/process_metadata.csv"}', 'id': 'lc_4710b6d3-e759-429d-8b4d-12f429bd6d3b'}]
+================================== Ai Message ==================================
+
+The SQLite database connection is currently unavailable, so I cannot actually run the process (create `J09B_temp`, classify, join, export, and email) right now.
+
+All DB calls (`get_db_schema`, a simple `SELECT` via `run_sqlite_query`) fail with:
+
+> Error no database connection
+
+Per the operating procedure, I have already escalated this as a major issue to `support@company.com` with a detailed description of your J09B process and the exact failure.
+
+Because the tools cannot talk to the database, I also cannot:
+- Create or populate `J09B_temp`
+- Compute `ENTSCHEIDUNG`
+- Join with `EABLG`, `net_master`, `sales_master`
+- Generate the `J09B` CSV
+- Send the CSV to `meter.readings@evu.com`
+- Drop `J09B_temp`
+
+Nothing has been changed in the database in this session.
+
+---
+
+### What you (or support) can run once the DB is available
+
+Below is a SQLite-style script that implements exactly the logic you described. You can run this directly in your environment, adjusting column names if needed.
+
+#### 1. Create `J09B_temp` from `decision_table`
+
+```sql
+CREATE TABLE J09B_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09B%';
+```
+
+#### 2. Add `ENTSCHEIDUNG` column
+
+```sql
+ALTER TABLE J09B_temp
+ADD COLUMN ENTSCHEIDUNG TEXT;
+```
+
+#### 3. Classify each house into KSA / EVU
+
+Logic:
+
+- Count how many equipment numbers (`EQUNR`) belong to each `HAUS`.
+- If a house has fewer than 3 equipment numbers → `ENTSCHEIDUNG = 'KSA'`
+- Otherwise → `ENTSCHEIDUNG = 'EVU'`
+- Override: if `HOUSE_NUM1 = 0` → always `ENTSCHEIDUNG = 'EVU'` regardless of count.
+
+```sql
+UPDATE J09B_temp
+SET ENTSCHEIDUNG = CASE
+    WHEN HOUSE_NUM1 = 0 THEN 'EVU'
+    WHEN (
+        SELECT COUNT(DISTINCT t2.EQUNR)
+        FROM J09B_temp t2
+        WHERE t2.HAUS = J09B_temp.HAUS
+    ) < 3 THEN 'KSA'
+    ELSE 'EVU'
+END;
+```
+
+#### 4. Build the final enriched dataset
+
+Assumptions (adapt if your column names differ):
+
+- `J09B_temp.INSTALLATION` joins to `EABLG.INSTALLATION`.
+- `EABLG` contains the meter reading document number in column `"Meter Reading (MR) Doc. No."` (or equivalent — adjust as needed).
+- `net_master` and `sales_master` both have: `EQUNR`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.
+- When both net and sales records exist, sales data is preferred.
+
+```sql
+SELECT
+    e."Meter Reading (MR) Doc. No." AS "Meter Reading (MR) Doc. No.",
+    t.HAUS,
+    e.ANLAGE AS ANLAGE,           -- or e.INSTALLATION AS ANLAGE if that’s your column
+    t.ME_MA_ID,
+    t.EQUNR,
+    t.HOUSE_NUM1,
+    t.ENTSCHEIDUNG,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.TITLE     ELSE nm.TITLE     END AS TITLE,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.FORENAME  ELSE nm.FORENAME  END AS FORENAME,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.SURNAME   ELSE nm.SURNAME   END AS SURNAME,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.STREET    ELSE nm.STREET    END AS STREET,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.STREETNO  ELSE nm.STREETNO  END AS STREETNO,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.POST_CODE1 ELSE nm.POST_CODE1 END AS POST_CODE1,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.CITY1     ELSE nm.CITY1     END AS CITY1,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.CITY2     ELSE nm.CITY2     END AS CITY2,
+    CASE WHEN sm.EQUNR IS NOT NULL THEN sm.EMAIL     ELSE nm.EMAIL     END AS EMAIL
+FROM J09B_temp t
+LEFT JOIN EABLG e
+    ON t.INSTALLATION = e.INSTALLATION
+LEFT JOIN net_master nm
+    ON t.EQUNR = nm.EQUNR
+LEFT JOIN sales_master sm
+    ON t.EQUNR = sm.EQUNR;
+```
+
+Export the result of this query as a CSV named `J09B` with exactly these columns (in order):
+
+`Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`.
+
+In the SQLite CLI, for example:
+
+```sql
+.mode csv
+.headers on
+.output J09B.csv
+-- paste the SELECT query here
+.output stdout
+```
+
+Then send `J09B.csv` to:
+
+`meter.readings@evu.com`
+
+#### 5. Drop the temporary table
+
+```sql
+DROP TABLE J09B_temp;
+```
+
+---
+
+Once the database connection is restored on this side, you can re-trigger this process and I will run these steps automatically using the tools (create `J09B_temp`, classify, enrich, export to CSV, email it, and drop the table).

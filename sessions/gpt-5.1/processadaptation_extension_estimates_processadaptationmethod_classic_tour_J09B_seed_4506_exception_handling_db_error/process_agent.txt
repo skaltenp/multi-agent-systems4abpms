@@ -1,0 +1,268 @@
+================================ Human Message =================================
+
+I need you to process the meter readings for tour J09B. Take all entries from the decision_table where the TOUR starts with "J09B" and put them into a temporary table called J09B_temp. Then add a new column called ENTSCHEIDUNG to that table.
+
+For classifying each house: count how many equipment numbers (EQUNR) belong to each house (HAUS). If a house has fewer than 3 equipment numbers, set its ENTSCHEIDUNG to "KSA". Otherwise, set it to "EVU". There are four additional overrides that always result in "EVU": houses where HOUSE_NUM1 is 0, houses where HOUSE_NUM1 is between 500 and 599, houses where HOUSE_NUM1 is between 900 and 999, and houses located in the areas of Wiblingwerde or Breckerfeld.
+
+Next, enrich the data by joining it with the EABLG table using the INSTALLATION field, and also pull in customer contact details from both the net_master and sales_master tables using the EQUNR field. When both net and sales data exist for a customer, prefer the sales data and leave the net data fields empty. If only net data exists, keep that.
+
+There is one more classification to handle: check the EABL table for equipment numbers that had "Maschinelle Schätzung - SAP" as ISTABLART_TXT in both 2023 and 2024 (based on Record created on). For those, set ENTSCHEIDUNG to "MANDATORY_READING".
+
+Export the MANDATORY_READING entries separately as a CSV file named "J09B_MANDATORY_READING" with these columns: `Meter Reading (MR) Doc. No.`, `HAUS`, `ANLAGE`, `ME_MA_ID`, `EQUNR`, `HOUSE_NUM1`, `ENTSCHEIDUNG`, `TITLE`, `FORENAME`, `SURNAME`, `STREET`, `STREETNO`, `POST_CODE1`, `CITY1`, `CITY2`, `EMAIL`. Send that file to the internal team at mandatory.reading@provider.com.
+
+Then export all remaining entries (everything except MANDATORY_READING) as a CSV file named "J09B" with the same columns. Send that to the EVU team at meter.readings@evu.com. After that, delete the temporary table.
+
+================================== Ai Message ==================================
+Tool Calls:
+  get_db_schema (call_2f0gmBRrvOoqYvtIJGLxbuPC)
+ Call ID: call_2f0gmBRrvOoqYvtIJGLxbuPC
+  Args:
+================================= Tool Message =================================
+Name: get_db_schema
+
+[{'type': 'text', 'text': '{"success":false,"error":"Error no database connection","message":"Error no database connection"}', 'id': 'lc_d81479a8-ba57-4f03-90b2-785041a8ec0b'}]
+================================== Ai Message ==================================
+Tool Calls:
+  run_sqlite_query (call_arCgGJXg3zXyqVwVTJDHr8r6)
+ Call ID: call_arCgGJXg3zXyqVwVTJDHr8r6
+  Args:
+    sqlite_command: SELECT name FROM sqlite_master LIMIT 5;
+================================= Tool Message =================================
+Name: run_sqlite_query
+
+[{'type': 'text', 'text': '{"success":false,"error":"Error no database connection","message":"Error no database connection"}', 'id': 'lc_7bcc7e16-9c72-4b28-ab15-69114c8abb4e'}]
+================================== Ai Message ==================================
+Tool Calls:
+  send_mail (call_gAo6mH6sfgguahomuxQZYBnT)
+ Call ID: call_gAo6mH6sfgguahomuxQZYBnT
+  Args:
+    file_path: 
+    email: Database connection error: Unable to connect to SQLite decision_table database for processing tour J09B. Tools get_db_schema and run_sqlite_query both returned 'Error no database connection'. Please investigate DB connectivity or availability for this workspace/session so the J09B process (temp table creation, enrichment, exports, and mail-outs) can be executed.
+    email_address: support@company.com
+================================= Tool Message =================================
+Name: send_mail
+
+[{'type': 'text', 'text': '{"success":true,"email_csv_path":"sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09B_seed_4506_exception_handling_db_error/process_metadata.csv","message":"Email metadata stored successfully at sessions/gpt-5.1/processadaptation_extension_estimates_processadaptationmethod_classic_tour_J09B_seed_4506_exception_handling_db_error/process_metadata.csv"}', 'id': 'lc_1237f3d9-1874-4ed1-87a4-c83fd4879d14'}]
+================================== Ai Message ==================================
+
+There is currently a database connectivity problem in this environment: both `get_db_schema` and direct SQL execution against the SQLite database return `Error no database connection`.  
+Because of that, I cannot actually run any of the SQL steps, create the temp table, generate the CSVs, or send the two output files.
+
+I have already escalated this to `support@company.com` as required, with a detailed error description so they can fix the DB connectivity.
+
+Below is exactly how the process will be executed once the database is reachable again. You can also run these steps directly in your own environment (adapting column names where needed).
+
+---
+
+## 1. Create the temporary table for tour J09B
+
+```sql
+DROP TABLE IF EXISTS J09B_temp;
+
+CREATE TABLE J09B_temp AS
+SELECT *
+FROM decision_table
+WHERE TOUR LIKE 'J09B%';
+```
+
+Add the decision column:
+
+```sql
+ALTER TABLE J09B_temp ADD COLUMN ENTSCHEIDUNG TEXT;
+```
+
+---
+
+## 2. Base KSA/EVU classification per house
+
+Count equipment per house:
+
+```sql
+WITH eq_count AS (
+    SELECT
+        HAUS,
+        COUNT(DISTINCT EQUNR) AS eq_cnt
+    FROM J09B_temp
+    GROUP BY HAUS
+)
+UPDATE J09B_temp
+SET ENTSCHEIDUNG = CASE
+    -- Overrides that are always EVU
+    WHEN HOUSE_NUM1 = 0 THEN 'EVU'
+    WHEN HOUSE_NUM1 BETWEEN 500 AND 599 THEN 'EVU'
+    WHEN HOUSE_NUM1 BETWEEN 900 AND 999 THEN 'EVU'
+    -- Area override (adjust AREA_COLUMN to your real area/city column,
+    -- e.g. CITY1 or CITY2)
+    WHEN UPPER(AREA_COLUMN) LIKE '%WIBLINGWERDE%'
+      OR UPPER(AREA_COLUMN) LIKE '%BRECKERFELD%'
+      THEN 'EVU'
+
+    -- Base rule: < 3 EQUNR per HAUS → KSA, otherwise EVU
+    WHEN (SELECT eq_cnt
+          FROM eq_count ec
+          WHERE ec.HAUS = J09B_temp.HAUS) < 3
+      THEN 'KSA'
+    ELSE 'EVU'
+END;
+```
+
+Replace `AREA_COLUMN` with the correct column that indicates the area (e.g. `CITY1` if that’s where Wiblingwerde/Breckerfeld live).
+
+---
+
+## 3. Mark additional MANDATORY_READING meters (EABL 2023 & 2024)
+
+We need all EQUNR in `EABL` that have `ISTABLART_TXT = 'Maschinelle Schätzung - SAP'` in **both 2023 and 2024**, based on the “Record created on” date.
+
+Assuming:
+
+- table: `EABL`
+- text column: `ISTABLART_TXT`
+- creation-date column: `RECORD_CREATED_ON` (replace with the actual column name, e.g. `ERDAT`)
+
+```sql
+WITH ms AS (
+    SELECT
+        EQUNR
+    FROM EABL
+    WHERE ISTABLART_TXT = 'Maschinelle Schätzung - SAP'
+      AND strftime('%Y', RECORD_CREATED_ON) IN ('2023', '2024')
+    GROUP BY EQUNR
+    HAVING COUNT(DISTINCT strftime('%Y', RECORD_CREATED_ON)) = 2
+)
+UPDATE J09B_temp
+SET ENTSCHEIDUNG = 'MANDATORY_READING'
+WHERE EQUNR IN (SELECT EQUNR FROM ms);
+```
+
+This overrides whatever KSA/EVU classification was previously set for those EQUNR.
+
+---
+
+## 4. Enrich J09B_temp with EABLG, net_master, and sales_master
+
+Join EABLG by installation:
+
+- `J09B_temp.INSTALLATION` = `EABLG.INSTALLATION` (adjust names if slightly different)
+
+Join customer masters by equipment:
+
+- `J09B_temp.EQUNR` = `sales_master.EQUNR`
+- `J09B_temp.EQUNR` = `net_master.EQUNR`
+
+Sales data is preferred; if both sales and net exist, use sales and ignore net fields. You can implement this preference via CASE/COALESCE in a view:
+
+```sql
+DROP VIEW IF EXISTS J09B_enriched;
+
+CREATE VIEW J09B_enriched AS
+SELECT
+    t."Meter Reading (MR) Doc. No."       AS "Meter Reading (MR) Doc. No.",
+    t.HAUS,
+    e.ANLAGE,
+    e.ME_MA_ID,
+    t.EQUNR,
+    t.HOUSE_NUM1,
+    t.ENTSCHEIDUNG,
+
+    -- Prefer sales_master over net_master
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.TITLE      ELSE n.TITLE      END AS TITLE,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.FORENAME   ELSE n.FORENAME   END AS FORENAME,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.SURNAME    ELSE n.SURNAME    END AS SURNAME,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.STREET     ELSE n.STREET     END AS STREET,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.STREETNO   ELSE n.STREETNO   END AS STREETNO,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.POST_CODE1 ELSE n.POST_CODE1 END AS POST_CODE1,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY1      ELSE n.CITY1      END AS CITY1,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.CITY2      ELSE n.CITY2      END AS CITY2,
+    CASE WHEN s.EQUNR IS NOT NULL THEN s.EMAIL      ELSE n.EMAIL      END AS EMAIL
+
+FROM J09B_temp t
+LEFT JOIN EABLG e
+    ON t.INSTALLATION = e.INSTALLATION
+LEFT JOIN sales_master s
+    ON t.EQUNR = s.EQUNR
+LEFT JOIN net_master n
+    ON t.EQUNR = n.EQUNR;
+```
+
+Adapt column names (`"Meter Reading (MR) Doc. No."`, `ANLAGE`, `ME_MA_ID`, etc.) to match your actual schema if they differ.
+
+---
+
+## 5. Export the CSVs
+
+### 5.1. MANDATORY_READING file
+
+Query for the MANDATORY_READING set with the required columns:
+
+```sql
+SELECT
+    "Meter Reading (MR) Doc. No.",
+    HAUS,
+    ANLAGE,
+    ME_MA_ID,
+    EQUNR,
+    HOUSE_NUM1,
+    ENTSCHEIDUNG,
+    TITLE,
+    FORENAME,
+    SURNAME,
+    STREET,
+    STREETNO,
+    POST_CODE1,
+    CITY1,
+    CITY2,
+    EMAIL
+FROM J09B_enriched
+WHERE ENTSCHEIDUNG = 'MANDATORY_READING';
+```
+
+Export that as `J09B_MANDATORY_READING.csv` and send it to:
+
+- `mandatory.reading@provider.com`
+
+(Here in this environment I would call the `prepare_csv` tool with this SQL and filename `J09B_MANDATORY_READING`, then call `send_mail` with the resulting file path. That part cannot run until the DB connection is fixed.)
+
+### 5.2. Remaining entries (non-MANDATORY_READING)
+
+```sql
+SELECT
+    "Meter Reading (MR) Doc. No.",
+    HAUS,
+    ANLAGE,
+    ME_MA_ID,
+    EQUNR,
+    HOUSE_NUM1,
+    ENTSCHEIDUNG,
+    TITLE,
+    FORENAME,
+    SURNAME,
+    STREET,
+    STREETNO,
+    POST_CODE1,
+    CITY1,
+    CITY2,
+    EMAIL
+FROM J09B_enriched
+WHERE ENTSCHEIDUNG <> 'MANDATORY_READING';
+```
+
+Export that as `J09B.csv` and send it to:
+
+- `meter.readings@evu.com`
+
+---
+
+## 6. Cleanup
+
+After the exports and emails are complete:
+
+```sql
+DROP VIEW IF EXISTS J09B_enriched;
+DROP TABLE IF EXISTS J09B_temp;
+```
+
+---
+
+**Current status:**  
+None of the above SQL has actually run in this workspace because of the SQLite connection error. Support has been notified. Once they restore DB access, I can re-run this process end‑to‑end here, or you can execute the SQL script above in your own environment to complete the J09B processing.
